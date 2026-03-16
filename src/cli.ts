@@ -4,6 +4,7 @@ import { Command } from "commander";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { loadConfig } from "./config.js";
+import { runLearn } from "./learner.js";
 import { runFeature, runReviewOnly } from "./runner.js";
 import { runRepair } from "./repairer.js";
 import { createProvider } from "./providers/index.js";
@@ -103,10 +104,44 @@ program
       const reviewRaw = await readFile(resolve(reviewFile), "utf-8");
       const review = JSON.parse(reviewRaw);
 
-      const provider = createProvider(config.repairer.provider, config.repairer.model);
+      const provider = createProvider(config.repairer.provider, {
+        model: config.repairer.model,
+        dangerouslySkipPermissions: config.repairer.dangerouslySkipPermissions,
+      });
       const output = await runRepair(provider, spec, review, resolve(opts.cwd));
 
       console.log(output);
+    } catch (err) {
+      log.error(String(err));
+      process.exit(2);
+    }
+  });
+
+program
+  .command("learn")
+  .description("Analyze past runs and generate reusable skills from recurring lessons")
+  .option("--cwd <dir>", "Working directory", process.cwd())
+  .option("--learner <provider>", "Override learner provider")
+  .option("--learner-model <model>", "Override learner model")
+  .option("--limit <count>", "How many recent runs to analyze", parseInteger, 10)
+  .option("--out-dir <dir>", "Directory where learned skills are written", ".patchy-pilot/skills")
+  .action(async (opts) => {
+    try {
+      const config = await loadConfig(opts.cwd);
+      const result = await runLearn({
+        config,
+        cwd: resolve(opts.cwd),
+        limit: opts.limit,
+        provider: opts.learner,
+        model: opts.learnerModel,
+        outDir: opts.outDir,
+      });
+
+      log.divider();
+      log.info(`Analyzed ${result.analyzed_runs} runs`);
+      log.info(`Skills written to ${result.output_dir}`);
+      log.info(result.overview);
+      log.divider();
     } catch (err) {
       log.error(String(err));
       process.exit(2);
@@ -122,4 +157,12 @@ async function resolveSpec(specArg: string): Promise<string> {
     return readFile(path, "utf-8");
   }
   return specArg;
+}
+
+function parseInteger(value: string): number {
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    throw new Error(`Expected a positive integer, received: ${value}`);
+  }
+  return parsed;
 }

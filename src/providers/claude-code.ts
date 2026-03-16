@@ -1,18 +1,24 @@
 import { exec } from "../utils/process.js";
-import type { AIProvider, ProviderResponse } from "./types.js";
+import type { AIProvider, ProviderOptions, ProviderResponse } from "./types.js";
 
 export class ClaudeCodeProvider implements AIProvider {
   readonly name = "claude-code";
 
-  constructor(private model?: string) {}
+  constructor(private options: ProviderOptions = {}) {}
 
   async run(
     prompt: string,
     options?: { cwd?: string; timeout?: number }
   ): Promise<ProviderResponse> {
     const args = ["--print", prompt];
-    if (this.model) {
-      args.unshift("--model", this.model);
+    if (this.options.model) {
+      args.unshift("--model", this.options.model);
+    }
+
+    if (this.options.dangerouslySkipPermissions) {
+      args.unshift("--dangerously-skip-permissions");
+    } else {
+      args.unshift("--permission-mode", "acceptEdits");
     }
 
     const result = await exec("claude", args, {

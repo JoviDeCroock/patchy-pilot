@@ -3,6 +3,11 @@ export interface ProviderResponse {
   exitCode: number;
 }
 
+export interface ProviderOptions {
+  model?: string;
+  dangerouslySkipPermissions?: boolean;
+}
+
 export interface AIProvider {
   readonly name: string;
 

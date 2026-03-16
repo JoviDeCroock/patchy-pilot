@@ -78,6 +78,23 @@ Run a repair pass using findings from a previous review.
 ppilot repair .patchy-pilot/runs/2026-03-16T14-30-00/review.json @specs/retry-mechanism.md
 ```
 
+### `ppilot learn`
+
+Analyze recent patchy-pilot runs and turn repeated lessons, blind spots, or non-obvious expectations into reusable skill files.
+
+```bash
+# Analyze the 10 most recent runs and write skills to .patchy-pilot/skills
+ppilot learn
+
+# Analyze a smaller window of recent runs
+ppilot learn --limit 5
+
+# Override the provider used for learning
+ppilot learn --learner opencode --learner-model gpt-5
+```
+
+The command writes a `README.md`, `manifest.json`, and one Markdown file per generated skill under `.patchy-pilot/skills/`.
+
 ## Configuration
 
 Configuration is optional. If you do not provide a config file, patchy-pilot will use provider defaults and try to infer validation commands from `package.json` scripts.
@@ -88,7 +105,8 @@ If you want to override providers, thresholds, or validation commands, create a 
 {
   "builder": {
     "provider": "claude-code",
-    "model": "sonnet"
+    "model": "sonnet",
+    "dangerouslySkipPermissions": false
   },
   "reviewer": {
     "provider": "claude-code",
@@ -120,9 +138,12 @@ If you want to override providers, thresholds, or validation commands, create a 
 |---|---|---|
 | `builder.provider` | AI tool for building | `claude-code` |
 | `builder.model` | Model override for builder | (provider default) |
+| `builder.dangerouslySkipPermissions` | Skip provider permission prompts/sandbox when supported | `false` |
 | `reviewer.provider` | AI tool for reviewing | `claude-code` |
 | `reviewer.model` | Model override for reviewer | (provider default) |
+| `reviewer.dangerouslySkipPermissions` | Skip provider permission prompts/sandbox when supported | `false` |
 | `repairer.provider` | AI tool for repair pass | `claude-code` |
+| `repairer.dangerouslySkipPermissions` | Skip provider permission prompts/sandbox when supported | `false` |
 | `repairer.enabled` | Auto-repair when review fails gating | `false` |
 | `validation.*` | Deterministic check commands | inferred from `package.json` when possible |
 | `thresholds.max_critical` | Max critical issues before gating fails | `0` |
@@ -138,8 +159,8 @@ If you want to override providers, thresholds, or validation commands, create a 
 | Provider | Command | Notes |
 |---|---|---|
 | `claude-code` | `claude --print` | Claude Code CLI |
-| `codex` | `codex --quiet` | OpenAI Codex CLI |
-| `opencode` | `opencode -m` | OpenCode CLI |
+| `codex` | `codex exec` | OpenAI Codex CLI |
+| `opencode` | `opencode run` | OpenCode CLI |
 
 Mix and match — use one provider for building and another for reviewing.
 
@@ -159,6 +180,15 @@ Each run saves artifacts to `.patchy-pilot/runs/<timestamp>/`:
   gating.json          # Pass/fail with reasons
   repair-output.txt    # Repair pass output (if triggered)
   result.json          # Final run summary with exit code
+```
+
+Learned skills are written separately to:
+
+```
+.patchy-pilot/skills/
+  README.md            # High-level index of generated skills
+  manifest.json        # Machine-readable skill manifest
+  <skill>.md           # One generated skill per file
 ```
 
 ### Review output shape
@@ -194,6 +224,7 @@ src/
   cli.ts              CLI entrypoint (commander)
   config.ts           Config loading
   runner.ts           Main orchestrator
+  learner.ts          Run analysis and skill generation
   validator.ts        Deterministic checks
   collector.ts        Artifact collection (git diff, file contents)
   reviewer.ts         AI reviewer with JSON extraction
@@ -207,9 +238,11 @@ src/
     index.ts          Provider factory
   prompts/
     builder.ts        Builder prompt template
+    learner.ts        Learner prompt template
     reviewer.ts       Reviewer prompt template
     repairer.ts       Repairer prompt template
   schemas/
+    learn.ts          Zod schemas for learner output
     review.ts         Zod schemas for review output, validation, artifacts
     config.ts         Zod schema for config
   utils/

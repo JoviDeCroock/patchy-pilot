@@ -1,19 +1,24 @@
 import { exec } from "../utils/process.js";
-import type { AIProvider, ProviderResponse } from "./types.js";
+import type { AIProvider, ProviderOptions, ProviderResponse } from "./types.js";
 
 export class OpenCodeProvider implements AIProvider {
   readonly name = "opencode";
 
-  constructor(private model?: string) {}
+  constructor(private options: ProviderOptions = {}) {}
 
   async run(
     prompt: string,
     options?: { cwd?: string; timeout?: number }
   ): Promise<ProviderResponse> {
-    // OpenCode uses -m for message in non-interactive mode
-    const args = ["-m", prompt];
-    if (this.model) {
-      args.unshift("--model", this.model);
+    if (this.options.dangerouslySkipPermissions) {
+      throw new Error(
+        "OpenCode CLI does not expose a verified dangerous-permissions flag via `opencode run --help`"
+      );
+    }
+
+    const args = ["run", prompt];
+    if (this.options.model) {
+      args.unshift("--model", this.options.model);
     }
 
     const result = await exec("opencode", args, {

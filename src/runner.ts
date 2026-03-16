@@ -36,7 +36,10 @@ export async function runFeature(opts: FeatureOptions): Promise<RunResult> {
   let builderSummary: string | undefined;
   if (!opts.skipBuild) {
     log.step("Starting builder");
-    const builder = createProvider(opts.config.builder.provider, opts.config.builder.model);
+    const builder = createProvider(opts.config.builder.provider, {
+      model: opts.config.builder.model,
+      dangerouslySkipPermissions: opts.config.builder.dangerouslySkipPermissions,
+    });
     const prompt = buildPrompt(opts.spec);
     const result = await builder.run(prompt, { cwd: opts.cwd });
     builderSummary = result.output;
@@ -63,7 +66,10 @@ export async function runFeature(opts: FeatureOptions): Promise<RunResult> {
   // Step 4: Review
   let review: ReviewResult | undefined;
   if (!opts.skipReview) {
-    const reviewer = createProvider(opts.config.reviewer.provider, opts.config.reviewer.model);
+    const reviewer = createProvider(opts.config.reviewer.provider, {
+      model: opts.config.reviewer.model,
+      dangerouslySkipPermissions: opts.config.reviewer.dangerouslySkipPermissions,
+    });
     try {
       review = await runReview(reviewer, artifacts, opts.config.review_rules, opts.cwd);
       await store.save("review.json", review);
@@ -88,7 +94,10 @@ export async function runFeature(opts: FeatureOptions): Promise<RunResult> {
   let repairApplied = false;
   const shouldRepair = opts.repair ?? opts.config.repairer.enabled;
   if (review && !gatingPassed && shouldRepair) {
-    const repairer = createProvider(opts.config.repairer.provider, opts.config.repairer.model);
+    const repairer = createProvider(opts.config.repairer.provider, {
+      model: opts.config.repairer.model,
+      dangerouslySkipPermissions: opts.config.repairer.dangerouslySkipPermissions,
+    });
     const repairOutput = await runRepair(repairer, opts.spec, review, opts.cwd);
     await store.save("repair-output.txt", repairOutput);
     repairApplied = true;
@@ -151,7 +160,10 @@ export async function runReviewOnly(opts: ReviewOnlyOptions): Promise<ReviewResu
   const artifacts = await collectArtifacts(opts.spec, validation, opts.config, opts.cwd);
   await store.save("artifacts.json", artifacts);
 
-  const reviewer = createProvider(opts.config.reviewer.provider, opts.config.reviewer.model);
+  const reviewer = createProvider(opts.config.reviewer.provider, {
+    model: opts.config.reviewer.model,
+    dangerouslySkipPermissions: opts.config.reviewer.dangerouslySkipPermissions,
+  });
   const review = await runReview(reviewer, artifacts, opts.config.review_rules, opts.cwd);
   await store.save("review.json", review);
 

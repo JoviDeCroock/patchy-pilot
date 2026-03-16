@@ -13,8 +13,12 @@ export async function loadConfig(cwd: string = process.cwd()): Promise<Config> {
       const raw = await readFile(join(cwd, file), "utf-8");
       const parsed = JSON.parse(raw);
       return withInferredValidation(ConfigSchema.parse(parsed), inferredValidation);
-    } catch {
-      // try next
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if ((error as NodeJS.ErrnoException | undefined)?.code === "ENOENT") {
+        continue;
+      }
+      throw new Error(`Invalid configuration in ${file}: ${message}`);
     }
   }
 

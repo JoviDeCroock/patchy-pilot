@@ -4,6 +4,16 @@ import { ReviewResultSchema } from "./schemas/review.js";
 import { reviewPrompt } from "./prompts/reviewer.js";
 import { log } from "./utils/logger.js";
 
+export class ReviewExecutionError extends Error {
+  constructor(
+    message: string,
+    readonly rawOutput?: string
+  ) {
+    super(message);
+    this.name = "ReviewExecutionError";
+  }
+}
+
 export async function runReview(
   provider: AIProvider,
   artifacts: Artifacts,
@@ -15,12 +25,22 @@ export async function runReview(
   const prompt = reviewPrompt(artifacts, extraRules);
   const response = await provider.run(prompt, { cwd });
 
+  if (response.exitCode !== 0) {
+    throw new ReviewExecutionError(
+      `Reviewer exited with code ${response.exitCode}`,
+      response.output
+    );
+  }
+
   log.detail("Parsing review output");
 
   const json = extractJson(response.output);
   if (!json) {
     log.error("Reviewer did not return valid JSON. Raw output saved to artifacts.");
-    throw new Error("Failed to parse reviewer output as JSON");
+    throw new ReviewExecutionError(
+      "Failed to parse reviewer output as JSON",
+      response.output
+    );
   }
 
   const result = ReviewResultSchema.parse(json);

@@ -19,19 +19,24 @@ export class ClaudeCodeProvider implements AIProvider {
     prompt: string,
     options?: { cwd?: string; timeout?: number }
   ): Promise<ProviderResponse> {
-    const args = ["--print", prompt];
+    const args = ["--print"];
+
+    if (this.options.dangerouslySkipPermissions) {
+      args.unshift("--dangerously-skip-permissions");
+    } else if (this.options.role === "builder" || this.options.role === "repairer") {
+      args.unshift("--permission-mode", "acceptEdits");
+    } else {
+      args.unshift("--permission-mode", "default");
+      args.unshift("--tools", "");
+    }
+
     if (this.options.model) {
       args.unshift("--model", this.options.model);
     }
 
-    if (this.options.dangerouslySkipPermissions) {
-      args.unshift("--dangerously-skip-permissions");
-    } else {
-      args.unshift("--permission-mode", "acceptEdits");
-    }
-
     const result = await exec("claude", args, {
       cwd: options?.cwd,
+      stdin: prompt,
       timeout: options?.timeout ?? 600_000,
     });
 

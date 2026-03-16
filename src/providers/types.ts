@@ -3,9 +3,12 @@ export interface ProviderResponse {
   exitCode: number;
 }
 
+export type ProviderRole = "builder" | "reviewer" | "repairer" | "learner";
+
 export interface ProviderOptions {
   model?: string;
   dangerouslySkipPermissions?: boolean;
+  role?: ProviderRole;
 }
 
 export interface AIProvider {

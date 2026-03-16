@@ -101,6 +101,8 @@ Configuration is optional. If you do not provide a config file, patchy-pilot wil
 
 If you want to override providers, thresholds, or validation commands, create a `patchy-pilot.json` (or `.patchy-pilot.json`, or `.patchy-pilot/config.json`) in your project root. See `patchy-pilot.example.json` for a full example.
 
+`dangerouslySkipPermissions` is supported for the builder only. Reviewer and repairer configs reject it, and the learner never inherits dangerous permissions from the reviewer.
+
 ```json
 {
   "builder": {
@@ -138,13 +140,12 @@ If you want to override providers, thresholds, or validation commands, create a 
 |---|---|---|
 | `builder.provider` | AI tool for building | `claude-code` |
 | `builder.model` | Model override for builder | (provider default) |
-| `builder.dangerouslySkipPermissions` | Skip provider permission prompts/sandbox when supported | `false` |
+| `builder.dangerouslySkipPermissions` | Skip provider permission prompts/sandbox when supported; use only in an external sandbox | `false` |
 | `reviewer.provider` | AI tool for reviewing | `claude-code` |
 | `reviewer.model` | Model override for reviewer | (provider default) |
-| `reviewer.dangerouslySkipPermissions` | Skip provider permission prompts/sandbox when supported | `false` |
 | `repairer.provider` | AI tool for repair pass | `claude-code` |
-| `repairer.dangerouslySkipPermissions` | Skip provider permission prompts/sandbox when supported | `false` |
 | `repairer.enabled` | Auto-repair when review fails gating | `false` |
+| `repairer.max_iterations` | Max repair/review loops before giving up | `3` |
 | `validation.*` | Deterministic check commands | inferred from `package.json` when possible |
 | `thresholds.max_critical` | Max critical issues before gating fails | `0` |
 | `thresholds.max_high` | Max high-severity issues before gating fails | `2` |
@@ -158,11 +159,14 @@ If you want to override providers, thresholds, or validation commands, create a 
 
 | Provider | Command | Notes |
 |---|---|---|
-| `claude-code` | `claude --print` | Claude Code CLI |
-| `codex` | `codex exec` | OpenAI Codex CLI |
-| `opencode` | `opencode run` | OpenCode CLI |
+| `claude-code` | `claude --print` | Claude Code CLI; reviewer/learner run with tools disabled |
+| `codex` | `codex exec` | OpenAI Codex CLI; reviewer/learner run in read-only sandbox |
+| `opencode` | `opencode run` | OpenCode CLI; builder/repairer only because read-only review mode is not verified |
+| `pi` | `pi -p` | Pi coding agent; builder/repairer only because read-only review mode is not verified |
 
 Mix and match — use one provider for building and another for reviewing.
+
+Dangerous permission bypass is builder-only and should be used only inside a disposable external sandbox with no secrets mounted.
 
 During review, patchy-pilot also includes `package.json` scripts and detected CI workflow snippets in the reviewer prompt so the reviewer can compare the implementation against the checks your project appears to expect.
 

@@ -6,6 +6,13 @@
   "bin": {
     "ppilot": "./dist/cli.js"
   },
+  "files": [
+    "dist/**/*",
+    "README.md",
+    "patchy-pilot.example.json",
+    "package.json",
+    "LICENSE"
+  ],
   "scripts": {
     "build": "tsc",
     "dev": "tsx src/cli.ts",

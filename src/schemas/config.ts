@@ -23,20 +23,27 @@ export const ThresholdConfigSchema = z.object({
     .default(["critical_issues"]),
 });
 
-export const AgentConfigSchema = z.object({
+const BaseAgentConfigSchema = z.object({
   provider: z.string().default("claude-code"),
   model: z.string().optional(),
+});
+
+export const BuilderAgentConfigSchema = BaseAgentConfigSchema.extend({
   dangerouslySkipPermissions: z.boolean().default(false),
 });
 
+export const SafeAgentConfigSchema = BaseAgentConfigSchema.extend({
+  dangerouslySkipPermissions: z.never().optional(),
+});
+
 export const ConfigSchema = z.object({
-  builder: AgentConfigSchema.default({
+  builder: BuilderAgentConfigSchema.default({
     provider: 'claude-code',
   }),
-  reviewer: AgentConfigSchema.default({
+  reviewer: SafeAgentConfigSchema.default({
     provider: 'claude-code',
   }),
-  repairer: AgentConfigSchema.extend({
+  repairer: SafeAgentConfigSchema.extend({
     enabled: z.boolean().default(false),
     max_iterations: z.number().min(1).max(10).default(3),
   }).default({}),

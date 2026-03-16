@@ -3,7 +3,7 @@ import { basename, extname, join } from "node:path";
 import type { Config } from "./schemas/config.js";
 import type { Artifacts, ValidationResult } from "./schemas/review.js";
 import { collectProjectContext } from "./project-context.js";
-import { gitDiff, changedFiles } from "./utils/git.js";
+import { changedFiles, gitDiff, untrackedFiles } from "./utils/git.js";
 import { log } from "./utils/logger.js";
 
 /** File extensions that are almost certainly binary and should be skipped. */
@@ -56,7 +56,9 @@ export async function collectArtifacts(
   log.step("Collecting artifacts");
 
   const diff = await gitDiff(config.base_branch, cwd);
-  const files = await changedFiles(config.base_branch, cwd);
+  const trackedFiles = await changedFiles(config.base_branch, cwd);
+  const newFiles = await untrackedFiles(cwd);
+  const files = Array.from(new Set([...trackedFiles, ...newFiles])).sort();
   const projectContext = await collectProjectContext(cwd);
 
   log.detail(`Found ${files.length} changed files`);
@@ -97,9 +99,16 @@ export async function collectArtifacts(
     log.detail(`Skipped ${skippedSecret} potential secret file(s)`);
   }
 
+  const diffWithUntracked = newFiles.length > 0
+    ? `${diff}\n\n# Untracked files\n${newFiles.map((file) => `- ${file}`).join("\n")}`
+    : diff;
+
   return {
     spec,
-    git_diff: diff.length > 50_000 ? diff.slice(0, 50_000) + "\n... [truncated]" : diff,
+    git_diff:
+      diffWithUntracked.length > 50_000
+        ? diffWithUntracked.slice(0, 50_000) + "\n... [truncated]"
+        : diffWithUntracked,
     changed_files: files,
     file_contents: fileContents,
     validation,

@@ -70,16 +70,13 @@ program
       if (opts.reviewerModel) config.reviewer.model = opts.reviewerModel;
 
       const spec = await resolveSpec(specArg, opts.cwd);
-      const review = await runReviewOnly({
+      const result = await runReviewOnly({
         spec,
         config,
         cwd: resolve(opts.cwd),
       });
 
-      const hasBlockers =
-        review.critical_issues.length > 0 ||
-        review.merge_recommendation === "do_not_merge";
-      process.exit(hasBlockers ? 1 : 0);
+      process.exit(result.validation.all_passed && result.gating.passed ? 0 : 1);
     } catch (err) {
       log.error(String(err));
       process.exit(2);
@@ -106,11 +103,12 @@ program
 
       const provider = createProvider(config.repairer.provider, {
         model: config.repairer.model,
-        dangerouslySkipPermissions: config.repairer.dangerouslySkipPermissions,
+        role: "repairer",
       });
       const output = await runRepair(provider, spec, review, resolve(opts.cwd));
 
-      console.log(output);
+      console.log(output.output);
+      process.exit(output.exitCode === 0 ? 0 : 2);
     } catch (err) {
       log.error(String(err));
       process.exit(2);

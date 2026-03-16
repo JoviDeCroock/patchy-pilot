@@ -53,7 +53,7 @@ export async function runLearn(opts: LearnOptions): Promise<LearnResult> {
     opts.provider ?? opts.config.reviewer.provider,
     {
       model: opts.model ?? opts.config.reviewer.model,
-      dangerouslySkipPermissions: opts.config.reviewer.dangerouslySkipPermissions,
+      role: "learner",
     }
   );
 

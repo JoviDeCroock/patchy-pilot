@@ -26,6 +26,14 @@ export async function changedFiles(baseBranch: string, cwd?: string): Promise<st
     .filter((f) => f.length > 0);
 }
 
+export async function untrackedFiles(cwd?: string): Promise<string[]> {
+  const result = await exec("git", ["ls-files", "--others", "--exclude-standard"], { cwd });
+  return result.stdout
+    .trim()
+    .split("\n")
+    .filter((f) => f.length > 0);
+}
+
 export async function readFile(path: string, cwd?: string): Promise<string> {
   const result = await exec("cat", [path], { cwd });
   return result.stdout;

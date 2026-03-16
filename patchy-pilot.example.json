@@ -1,7 +1,8 @@
 {
   "builder": {
     "provider": "claude-code",
-    "model": "sonnet"
+    "model": "sonnet",
+    "dangerouslySkipPermissions": false
   },
   "reviewer": {
     "provider": "claude-code",
@@ -10,7 +11,8 @@
   "repairer": {
     "provider": "claude-code",
     "model": "sonnet",
-    "enabled": false
+    "enabled": false,
+    "max_iterations": 3
   },
   "validation": {
     "formatter": {

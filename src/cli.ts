@@ -1,14 +1,15 @@
 #!/usr/bin/env node
 
 import { Command } from "commander";
-import { readFile } from "node:fs/promises";
-import { resolve } from "node:path";
+import { readFile, readdir, writeFile } from "node:fs/promises";
+import { resolve, join } from "node:path";
 import { loadConfig } from "./config.js";
 import { runLearn } from "./learner.js";
 import { runFeature, runReviewOnly } from "./runner.js";
 import { runRepair } from "./repairer.js";
 import { createProvider } from "./providers/index.js";
 import { log } from "./utils/logger.js";
+import { loadReportData, generateReport } from "./report.js";
 
 const program = new Command();
 
@@ -146,6 +147,33 @@ program
     }
   });
 
+program
+  .command("report")
+  .description("Generate an HTML report from a run's artifacts")
+  .argument("[run-id]", "Run ID (timestamp) — defaults to the most recent run")
+  .option("--cwd <dir>", "Working directory", process.cwd())
+  .option("--artifacts-dir <dir>", "Artifacts directory", ".patchy-pilot/runs")
+  .option("-o, --output <file>", "Output HTML file path (defaults to <run-dir>/report.html)")
+  .action(async (runIdArg: string | undefined, opts) => {
+    try {
+      const runsDir = resolve(opts.cwd, opts.artifactsDir);
+      const runId = runIdArg ?? await getMostRecentRunId(runsDir);
+      const runDir = join(runsDir, runId);
+      const data = await loadReportData(runDir);
+      const html = generateReport(data);
+
+      const outPath = opts.output
+        ? resolve(opts.output)
+        : join(runDir, "report.html");
+
+      await writeFile(outPath, html, "utf-8");
+      log.success(`Report written to ${outPath}`);
+    } catch (err) {
+      log.error(String(err));
+      process.exit(2);
+    }
+  });
+
 program.parse();
 
 /** Resolve spec from inline text or @file reference */
@@ -165,6 +193,21 @@ async function resolveSpec(specArg: string, cwd?: string): Promise<string> {
     return readFile(filePath, "utf-8");
   }
   return specArg;
+}
+
+async function getMostRecentRunId(runsDir: string): Promise<string> {
+  let entries: string[];
+  try {
+    entries = await readdir(runsDir);
+  } catch {
+    throw new Error(`No runs directory found at ${runsDir}`);
+  }
+  // Run IDs are ISO-ish timestamps that sort lexicographically
+  const sorted = entries.filter((e) => !e.startsWith(".")).sort();
+  if (sorted.length === 0) {
+    throw new Error(`No runs found in ${runsDir}`);
+  }
+  return sorted[sorted.length - 1];
 }
 
 function parseInteger(value: string): number {

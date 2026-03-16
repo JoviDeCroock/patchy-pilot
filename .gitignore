@@ -1,3 +1,9 @@
+# Patchy Pilot artifacts
+.patchy-pilot/
+
+# Build output
+dist/
+
 # Logs
 logs
 *.log

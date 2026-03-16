@@ -1,0 +1,66 @@
+import { z } from "zod";
+
+export const SeveritySchema = z.enum(["critical", "high", "medium", "low", "info"]);
+export type Severity = z.infer<typeof SeveritySchema>;
+
+export const IssueSchema = z.object({
+  description: z.string(),
+  severity: SeveritySchema,
+  file: z.string().optional(),
+  line: z.number().optional(),
+  suggestion: z.string().optional(),
+});
+export type Issue = z.infer<typeof IssueSchema>;
+
+export const MergeRecommendation = z.enum([
+  "safe_to_merge",
+  "merge_with_minor_fixes",
+  "needs_changes",
+  "do_not_merge",
+]);
+
+export const ReviewResultSchema = z.object({
+  critical_issues: z.array(IssueSchema),
+  likely_bugs: z.array(IssueSchema),
+  missing_tests: z.array(IssueSchema),
+  spec_mismatches: z.array(IssueSchema),
+  risky_changes: z.array(IssueSchema),
+  hidden_assumptions: z.array(IssueSchema),
+  confidence: z.number().min(0).max(1),
+  merge_recommendation: MergeRecommendation,
+  short_summary: z.string(),
+});
+export type ReviewResult = z.infer<typeof ReviewResultSchema>;
+
+export const ValidationResultSchema = z.object({
+  formatter: z.object({ passed: z.boolean(), output: z.string() }).optional(),
+  linter: z.object({ passed: z.boolean(), output: z.string() }).optional(),
+  typecheck: z.object({ passed: z.boolean(), output: z.string() }).optional(),
+  tests: z.object({ passed: z.boolean(), output: z.string() }).optional(),
+  all_passed: z.boolean(),
+});
+export type ValidationResult = z.infer<typeof ValidationResultSchema>;
+
+export const ArtifactsSchema = z.object({
+  spec: z.string(),
+  git_diff: z.string(),
+  changed_files: z.array(z.string()),
+  file_contents: z.record(z.string(), z.string()),
+  validation: ValidationResultSchema,
+  builder_summary: z.string().optional(),
+});
+export type Artifacts = z.infer<typeof ArtifactsSchema>;
+
+export const RunResultSchema = z.object({
+  run_id: z.string(),
+  spec: z.string(),
+  started_at: z.string(),
+  completed_at: z.string(),
+  builder_provider: z.string(),
+  reviewer_provider: z.string(),
+  validation: ValidationResultSchema,
+  review: ReviewResultSchema.optional(),
+  repair_applied: z.boolean(),
+  exit_code: z.number(),
+});
+export type RunResult = z.infer<typeof RunResultSchema>;

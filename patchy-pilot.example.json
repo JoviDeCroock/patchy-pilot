@@ -1,0 +1,49 @@
+{
+  "builder": {
+    "provider": "claude-code",
+    "model": "sonnet"
+  },
+  "reviewer": {
+    "provider": "claude-code",
+    "model": "sonnet"
+  },
+  "repairer": {
+    "provider": "claude-code",
+    "model": "sonnet",
+    "enabled": false
+  },
+  "validation": {
+    "formatter": {
+      "command": "npx",
+      "args": ["prettier", "--check", "."],
+      "enabled": false
+    },
+    "linter": {
+      "command": "npx",
+      "args": ["eslint", "."],
+      "enabled": false
+    },
+    "typecheck": {
+      "command": "npx",
+      "args": ["tsc", "--noEmit"],
+      "enabled": false
+    },
+    "tests": {
+      "command": "npm",
+      "args": ["test"],
+      "enabled": false
+    }
+  },
+  "thresholds": {
+    "max_critical": 0,
+    "max_high": 2,
+    "min_confidence": 0.6,
+    "block_on": ["critical_issues"]
+  },
+  "review_rules": [
+    "Pay special attention to error handling at API boundaries",
+    "Check that all user inputs are validated"
+  ],
+  "base_branch": "main",
+  "artifacts_dir": ".patchy-pilot/runs"
+}

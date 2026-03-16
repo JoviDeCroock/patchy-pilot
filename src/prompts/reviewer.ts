@@ -1,0 +1,86 @@
+import type { Artifacts } from "../schemas/review.js";
+
+export function reviewPrompt(artifacts: Artifacts, extraRules: string[] = []): string {
+  const rulesSection =
+    extraRules.length > 0
+      ? `\n## Additional Review Rules\n${extraRules.map((r) => `- ${r}`).join("\n")}\n`
+      : "";
+
+  const validationSection = formatValidation(artifacts.validation);
+
+  const filesSection = Object.entries(artifacts.file_contents)
+    .map(([path, content]) => `### ${path}\n\`\`\`\n${content}\n\`\`\``)
+    .join("\n\n");
+
+  return `You are a skeptical senior engineer performing an independent code review.
+
+Another AI implemented a feature based on a specification. Your job is to review whether the implementation is correct, complete, and safe. Do NOT trust the builder's work. Verify everything independently.
+
+## Original Specification
+
+${artifacts.spec}
+
+## Git Diff
+
+\`\`\`diff
+${artifacts.git_diff}
+\`\`\`
+
+## Changed Files (full contents)
+
+${filesSection}
+
+## Validation Results
+
+${validationSection}
+
+${artifacts.builder_summary ? `## Builder's Summary\n\n${artifacts.builder_summary}\n\nNote: Do not trust this summary. Verify claims against the actual code.\n` : ""}
+${rulesSection}
+## Your Review
+
+Analyze the implementation critically. Check for:
+
+1. **Spec compliance**: Does the implementation match every requirement in the specification? Are there gaps or misinterpretations?
+2. **Bugs**: Are there likely bugs? Off-by-one errors, null/undefined issues, race conditions, missing error handling at boundaries?
+3. **Missing tests**: Are the tests meaningful? Do they cover edge cases, error paths, and boundary conditions? Are there scenarios that should be tested but aren't?
+4. **Regressions**: Could this change break existing functionality? Are there side effects?
+5. **Complexity**: Is the implementation unnecessarily complex? Could it be simpler?
+6. **Hidden assumptions**: Does the code assume things about the environment, input, or state that aren't guaranteed?
+7. **Risky changes**: Are there changes to shared code, configuration, or infrastructure that could have wider impact?
+
+## Required Output Format
+
+Respond with ONLY a JSON object matching this exact schema. No markdown, no explanation outside the JSON.
+
+\`\`\`json
+{
+  "critical_issues": [{"description": "...", "severity": "critical", "file": "...", "line": 0, "suggestion": "..."}],
+  "likely_bugs": [{"description": "...", "severity": "high|medium", "file": "...", "line": 0, "suggestion": "..."}],
+  "missing_tests": [{"description": "...", "severity": "high|medium", "file": "...", "suggestion": "..."}],
+  "spec_mismatches": [{"description": "...", "severity": "high|medium", "file": "...", "suggestion": "..."}],
+  "risky_changes": [{"description": "...", "severity": "high|medium|low", "file": "...", "suggestion": "..."}],
+  "hidden_assumptions": [{"description": "...", "severity": "medium|low", "file": "...", "suggestion": "..."}],
+  "confidence": 0.85,
+  "merge_recommendation": "safe_to_merge|merge_with_minor_fixes|needs_changes|do_not_merge",
+  "short_summary": "One paragraph summary of the overall assessment"
+}
+\`\`\`
+
+Rules for confidence score:
+- 0.9-1.0: Implementation is solid, well-tested, matches spec exactly
+- 0.7-0.9: Minor issues but fundamentally sound
+- 0.5-0.7: Significant concerns that should be addressed
+- 0.0-0.5: Major problems, likely broken or wrong
+
+Be honest. If the implementation is good, say so. If it's bad, say so clearly.`;
+}
+
+function formatValidation(v: Artifacts["validation"]): string {
+  const lines: string[] = [];
+  if (v.formatter) lines.push(`Formatter: ${v.formatter.passed ? "PASS" : "FAIL"}\n${v.formatter.output}`);
+  if (v.linter) lines.push(`Linter: ${v.linter.passed ? "PASS" : "FAIL"}\n${v.linter.output}`);
+  if (v.typecheck) lines.push(`Typecheck: ${v.typecheck.passed ? "PASS" : "FAIL"}\n${v.typecheck.output}`);
+  if (v.tests) lines.push(`Tests: ${v.tests.passed ? "PASS" : "FAIL"}\n${v.tests.output}`);
+  if (lines.length === 0) return "No validation steps configured.";
+  return lines.join("\n\n");
+}

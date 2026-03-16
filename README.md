@@ -95,6 +95,23 @@ ppilot learn --learner opencode --learner-model gpt-5
 
 The command writes a `README.md`, `manifest.json`, and one Markdown file per generated skill under `.patchy-pilot/skills/`.
 
+### `ppilot report [run-id]`
+
+Generate a self-contained HTML report from a run's artifacts.
+
+```bash
+# Report for the most recent run
+ppilot report
+
+# Report for a specific run
+ppilot report 2026-03-16T19-39-58
+
+# Write to a custom path
+ppilot report -o review-report.html
+```
+
+The report includes validation results, all review findings grouped by category and severity, gating status, confidence score, and merge recommendation. The output is a single HTML file with no external dependencies.
+
 ## Configuration
 
 Configuration is optional. If you do not provide a config file, patchy-pilot will use provider defaults and try to infer validation commands from `package.json` scripts.
@@ -260,8 +277,6 @@ src/
 
 - Claude Code hooks integration (trigger review on `PostToolUse` or session end)
 - Watch mode for continuous review during development
-- HTML report generation
 - Review history and trend tracking
 - Multi-file focus analysis (changed files + nearby impacted files)
-- Custom provider plugins via config
 - Parallel validation steps with streaming output

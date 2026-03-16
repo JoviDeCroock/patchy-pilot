@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { Config } from "./schemas/config.js";
 import type { Artifacts, ValidationResult } from "./schemas/review.js";
+import { collectProjectContext } from "./project-context.js";
 import { gitDiff, changedFiles } from "./utils/git.js";
 import { log } from "./utils/logger.js";
 
@@ -16,6 +17,7 @@ export async function collectArtifacts(
 
   const diff = await gitDiff(config.base_branch, cwd);
   const files = await changedFiles(config.base_branch, cwd);
+  const projectContext = await collectProjectContext(cwd);
 
   log.detail(`Found ${files.length} changed files`);
 
@@ -40,5 +42,6 @@ export async function collectArtifacts(
     file_contents: fileContents,
     validation,
     builder_summary: builderSummary,
+    project_context: projectContext,
   };
 }

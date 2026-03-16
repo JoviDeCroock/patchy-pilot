@@ -12,6 +12,7 @@ export const ValidationCommandSchema = z.object({
   args: z.array(z.string()).default([]),
   enabled: z.boolean().default(true),
 });
+export type ValidationCommand = z.infer<typeof ValidationCommandSchema>;
 
 export const ThresholdConfigSchema = z.object({
   max_critical: z.number().default(0),
@@ -26,23 +27,23 @@ export const ConfigSchema = z.object({
   builder: z.object({
     provider: z.string().default("claude-code"),
     model: z.string().optional(),
-  }),
+  }).default({}),
   reviewer: z.object({
     provider: z.string().default("claude-code"),
     model: z.string().optional(),
-  }),
+  }).default({}),
   repairer: z.object({
     provider: z.string().default("claude-code"),
     model: z.string().optional(),
     enabled: z.boolean().default(false),
-  }),
+  }).default({}),
   providers: z.record(z.string(), ProviderConfigSchema).default({}),
   validation: z.object({
     formatter: ValidationCommandSchema.optional(),
     linter: ValidationCommandSchema.optional(),
     typecheck: ValidationCommandSchema.optional(),
     tests: ValidationCommandSchema.optional(),
-  }),
+  }).default({}),
   thresholds: ThresholdConfigSchema.default({}),
   review_rules: z.array(z.string()).default([]),
   artifacts_dir: z.string().default(".patchy-pilot/runs"),

@@ -80,7 +80,9 @@ ppilot repair .patchy-pilot/runs/2026-03-16T14-30-00/review.json @specs/retry-me
 
 ## Configuration
 
-Create a `patchy-pilot.json` (or `.patchy-pilot.json`, or `.patchy-pilot/config.json`) in your project root. See `patchy-pilot.example.json` for a full example.
+Configuration is optional. If you do not provide a config file, patchy-pilot will use provider defaults and try to infer validation commands from `package.json` scripts.
+
+If you want to override providers, thresholds, or validation commands, create a `patchy-pilot.json` (or `.patchy-pilot.json`, or `.patchy-pilot/config.json`) in your project root. See `patchy-pilot.example.json` for a full example.
 
 ```json
 {
@@ -122,7 +124,7 @@ Create a `patchy-pilot.json` (or `.patchy-pilot.json`, or `.patchy-pilot/config.
 | `reviewer.model` | Model override for reviewer | (provider default) |
 | `repairer.provider` | AI tool for repair pass | `claude-code` |
 | `repairer.enabled` | Auto-repair when review fails gating | `false` |
-| `validation.*` | Deterministic check commands | (none enabled) |
+| `validation.*` | Deterministic check commands | inferred from `package.json` when possible |
 | `thresholds.max_critical` | Max critical issues before gating fails | `0` |
 | `thresholds.max_high` | Max high-severity issues before gating fails | `2` |
 | `thresholds.min_confidence` | Min reviewer confidence score | `0.6` |
@@ -140,6 +142,8 @@ Create a `patchy-pilot.json` (or `.patchy-pilot.json`, or `.patchy-pilot/config.
 | `opencode` | `opencode -m` | OpenCode CLI |
 
 Mix and match — use one provider for building and another for reviewing.
+
+During review, patchy-pilot also includes `package.json` scripts and detected CI workflow snippets in the reviewer prompt so the reviewer can compare the implementation against the checks your project appears to expect.
 
 ## Artifacts
 

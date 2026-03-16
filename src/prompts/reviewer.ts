@@ -7,6 +7,7 @@ export function reviewPrompt(artifacts: Artifacts, extraRules: string[] = []): s
       : "";
 
   const validationSection = formatValidation(artifacts.validation);
+  const projectContextSection = formatProjectContext(artifacts);
 
   const filesSection = Object.entries(artifacts.file_contents)
     .map(([path, content]) => `### ${path}\n\`\`\`\n${content}\n\`\`\``)
@@ -33,6 +34,8 @@ ${filesSection}
 ## Validation Results
 
 ${validationSection}
+
+${projectContextSection}
 
 ${artifacts.builder_summary ? `## Builder's Summary\n\n${artifacts.builder_summary}\n\nNote: Do not trust this summary. Verify claims against the actual code.\n` : ""}
 ${rulesSection}
@@ -83,4 +86,53 @@ function formatValidation(v: Artifacts["validation"]): string {
   if (v.tests) lines.push(`Tests: ${v.tests.passed ? "PASS" : "FAIL"}\n${v.tests.output}`);
   if (lines.length === 0) return "No validation steps configured.";
   return lines.join("\n\n");
+}
+
+function formatProjectContext(artifacts: Artifacts): string {
+  if (!artifacts.project_context) {
+    return "";
+  }
+
+  const sections: string[] = [];
+  const { package_manager, package_scripts, ci_files, inferred_validation } = artifacts.project_context;
+
+  if (package_manager || Object.keys(package_scripts).length > 0) {
+    const packageLines: string[] = [];
+    if (package_manager) {
+      packageLines.push(`Package manager: ${package_manager}`);
+    }
+    if (Object.keys(package_scripts).length > 0) {
+      packageLines.push(
+        `Package scripts:\n${Object.entries(package_scripts)
+          .map(([name, command]) => `- ${name}: ${command}`)
+          .join("\n")}`
+      );
+    }
+    sections.push(`## Project Tooling\n\n${packageLines.join("\n\n")}`);
+  }
+
+  const inferredLines = Object.entries(inferred_validation)
+    .map(([kind, command]) => {
+      if (!command) {
+        return undefined;
+      }
+
+      return `- ${kind}: ${command.command} ${command.args.join(" ")} (${command.detail})`;
+    })
+    .filter((line): line is string => Boolean(line));
+  if (inferredLines.length > 0) {
+    sections.push(
+      `## Inferred Validation Signals\n\nThese commands were inferred from package.json or CI and may indicate intended checks:\n${inferredLines.join("\n")}`
+    );
+  }
+
+  if (ci_files.length > 0) {
+    sections.push(
+      `## CI Configuration\n\n${ci_files
+        .map((file) => `### ${file.path}\n\n\`\`\`yaml\n${file.excerpt}\n\`\`\``)
+        .join("\n\n")}`
+    );
+  }
+
+  return sections.join("\n\n");
 }

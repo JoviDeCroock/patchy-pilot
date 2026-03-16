@@ -39,7 +39,7 @@ program
       if (opts.builderModel) config.builder.model = opts.builderModel;
       if (opts.reviewerModel) config.reviewer.model = opts.reviewerModel;
 
-      const spec = await resolveSpec(specArg);
+      const spec = await resolveSpec(specArg, opts.cwd);
       const result = await runFeature({
         spec,
         config,
@@ -69,7 +69,7 @@ program
       if (opts.reviewer) config.reviewer.provider = opts.reviewer;
       if (opts.reviewerModel) config.reviewer.model = opts.reviewerModel;
 
-      const spec = await resolveSpec(specArg);
+      const spec = await resolveSpec(specArg, opts.cwd);
       const review = await runReviewOnly({
         spec,
         config,
@@ -100,7 +100,7 @@ program
       if (opts.repairer) config.repairer.provider = opts.repairer;
       if (opts.repairerModel) config.repairer.model = opts.repairerModel;
 
-      const spec = await resolveSpec(specArg);
+      const spec = await resolveSpec(specArg, opts.cwd);
       const reviewRaw = await readFile(resolve(reviewFile), "utf-8");
       const review = JSON.parse(reviewRaw);
 
@@ -151,10 +151,20 @@ program
 program.parse();
 
 /** Resolve spec from inline text or @file reference */
-async function resolveSpec(specArg: string): Promise<string> {
+async function resolveSpec(specArg: string, cwd?: string): Promise<string> {
   if (specArg.startsWith("@")) {
-    const path = resolve(specArg.slice(1));
-    return readFile(path, "utf-8");
+    const projectRoot = resolve(cwd ?? process.cwd());
+    const filePath = resolve(projectRoot, specArg.slice(1));
+
+    // Prevent path traversal outside project root
+    if (!filePath.startsWith(projectRoot)) {
+      throw new Error(
+        `Spec file path "${specArg.slice(1)}" resolves outside the project root. ` +
+        `Resolved: ${filePath}, Root: ${projectRoot}`
+      );
+    }
+
+    return readFile(filePath, "utf-8");
   }
   return specArg;
 }

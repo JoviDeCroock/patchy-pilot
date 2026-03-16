@@ -30,10 +30,15 @@ export const AgentConfigSchema = z.object({
 });
 
 export const ConfigSchema = z.object({
-  builder: AgentConfigSchema.default({}),
-  reviewer: AgentConfigSchema.default({}),
+  builder: AgentConfigSchema.default({
+    provider: 'claude-code',
+  }),
+  reviewer: AgentConfigSchema.default({
+    provider: 'claude-code',
+  }),
   repairer: AgentConfigSchema.extend({
     enabled: z.boolean().default(false),
+    max_iterations: z.number().min(1).max(10).default(3),
   }).default({}),
   providers: z.record(z.string(), ProviderConfigSchema).default({}),
   validation: z.object({

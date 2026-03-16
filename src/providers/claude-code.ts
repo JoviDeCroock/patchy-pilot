@@ -1,10 +1,19 @@
 import { exec } from "../utils/process.js";
+import { log } from "../utils/logger.js";
 import type { AIProvider, ProviderOptions, ProviderResponse } from "./types.js";
 
 export class ClaudeCodeProvider implements AIProvider {
   readonly name = "claude-code";
 
-  constructor(private options: ProviderOptions = {}) {}
+  constructor(private options: ProviderOptions = {}) {
+    if (options.dangerouslySkipPermissions) {
+      log.warn(
+        `[claude-code] dangerouslySkipPermissions is ENABLED. ` +
+        `All permission checks will be bypassed. ` +
+        `The AI agent can execute arbitrary commands without approval.`
+      );
+    }
+  }
 
   async run(
     prompt: string,

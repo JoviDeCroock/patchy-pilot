@@ -1,4 +1,5 @@
 import { join } from "node:path";
+import { readFile, writeFile, access } from "node:fs/promises";
 import type { Config } from "./schemas/config.js";
 import type { ReviewResult, RunResult } from "./schemas/review.js";
 import { createProvider } from "./providers/index.js";
@@ -24,6 +25,9 @@ export async function runFeature(opts: FeatureOptions): Promise<RunResult> {
   const runId = createRunId();
   const store = new ArtifactStore(join(opts.cwd, opts.config.artifacts_dir, runId));
   await store.init();
+
+  // Ensure .patchy-pilot/ is in the target project's .gitignore
+  await ensureGitignore(opts.cwd);
 
   const startedAt = new Date().toISOString();
   await store.save("spec.md", opts.spec);
@@ -64,7 +68,7 @@ export async function runFeature(opts: FeatureOptions): Promise<RunResult> {
   await store.save("artifacts.json", artifacts);
 
   // Step 4: Review
-  let review: ReviewResult | undefined;
+  let review: ReviewResult | undefined;  // eslint-disable-line prefer-const -- reassigned in repair loop
   if (!opts.skipReview) {
     const reviewer = createProvider(opts.config.reviewer.provider, {
       model: opts.config.reviewer.model,
@@ -90,26 +94,64 @@ export async function runFeature(opts: FeatureOptions): Promise<RunResult> {
     await store.save("gating.json", gating);
   }
 
-  // Step 6: Optional repair
+  // Step 6: Optional repair (capped iterations)
   let repairApplied = false;
   const shouldRepair = opts.repair ?? opts.config.repairer.enabled;
+  const maxRepairIterations = opts.config.repairer.max_iterations;
+
   if (review && !gatingPassed && shouldRepair) {
     const repairer = createProvider(opts.config.repairer.provider, {
       model: opts.config.repairer.model,
       dangerouslySkipPermissions: opts.config.repairer.dangerouslySkipPermissions,
     });
-    const repairOutput = await runRepair(repairer, opts.spec, review, opts.cwd);
-    await store.save("repair-output.txt", repairOutput);
-    repairApplied = true;
+
+    let currentReview = review;
+    for (let attempt = 1; attempt <= maxRepairIterations; attempt++) {
+      log.step(`Repair attempt ${attempt}/${maxRepairIterations}`);
+
+      const repairOutput = await runRepair(repairer, opts.spec, currentReview, opts.cwd);
+      await store.save(`repair-output-${attempt}.txt`, repairOutput);
+      repairApplied = true;
+
+      // Re-validate and re-review after repair
+      if (attempt < maxRepairIterations) {
+        const reValidation = await validate(opts.config, opts.cwd);
+        const reArtifacts = await collectArtifacts(
+          opts.spec, reValidation, opts.config, opts.cwd, repairOutput
+        );
+        const reviewer = createProvider(opts.config.reviewer.provider, {
+          model: opts.config.reviewer.model,
+          dangerouslySkipPermissions: opts.config.reviewer.dangerouslySkipPermissions,
+        });
+
+        try {
+          currentReview = await runReview(reviewer, reArtifacts, opts.config.review_rules, opts.cwd);
+          await store.save(`review-repair-${attempt}.json`, currentReview);
+          const reGating = evaluateGating(currentReview, opts.config);
+
+          if (reGating.passed) {
+            log.success(`Repair succeeded on attempt ${attempt}`);
+            review = currentReview;
+            gatingPassed = true;
+            break;
+          }
+        } catch (err) {
+          log.error(`Post-repair review failed: ${err}`);
+          break;
+        }
+      }
+    }
+
+    if (!gatingPassed) {
+      log.warn(`Repair did not resolve all issues after ${maxRepairIterations} attempts`);
+    }
   }
 
   // Step 7: Final summary
   const exitCode = review
     ? gatingPassed
       ? 0
-      : repairApplied
-        ? 0
-        : 1
+      : 1
     : validation.all_passed
       ? 0
       : 1;
@@ -152,6 +194,8 @@ export async function runReviewOnly(opts: ReviewOnlyOptions): Promise<ReviewResu
   const store = new ArtifactStore(join(opts.cwd, opts.config.artifacts_dir, runId));
   await store.init();
 
+  await ensureGitignore(opts.cwd);
+
   log.divider();
   log.info(`Review-only run ${runId}`);
   log.divider();
@@ -177,6 +221,23 @@ export async function runReviewOnly(opts: ReviewOnlyOptions): Promise<ReviewResu
   log.divider();
 
   return review;
+}
+
+const GITIGNORE_ENTRY = ".patchy-pilot/";
+
+async function ensureGitignore(cwd: string): Promise<void> {
+  const gitignorePath = join(cwd, ".gitignore");
+  try {
+    await access(gitignorePath);
+    const content = await readFile(gitignorePath, "utf-8");
+    if (content.includes(GITIGNORE_ENTRY)) return;
+    await writeFile(gitignorePath, content.trimEnd() + `\n\n# Patchy Pilot artifacts\n${GITIGNORE_ENTRY}\n`, "utf-8");
+    log.detail(`Added ${GITIGNORE_ENTRY} to .gitignore`);
+  } catch {
+    // No .gitignore exists — create one
+    await writeFile(gitignorePath, `# Patchy Pilot artifacts\n${GITIGNORE_ENTRY}\n`, "utf-8");
+    log.detail(`Created .gitignore with ${GITIGNORE_ENTRY}`);
+  }
 }
 
 function printReviewSummary(review: ReviewResult) {

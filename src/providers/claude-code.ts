@@ -27,7 +27,6 @@ export class ClaudeCodeProvider implements AIProvider {
       args.unshift("--permission-mode", "acceptEdits");
     } else {
       args.unshift("--permission-mode", "default");
-      args.unshift("--tools", "");
     }
 
     if (this.options.model) {

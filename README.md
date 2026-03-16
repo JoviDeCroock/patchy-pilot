@@ -201,6 +201,7 @@ Each run saves artifacts to `.patchy-pilot/runs/<timestamp>/`:
   gating.json          # Pass/fail with reasons
   repair-output.txt    # Repair pass output (if triggered)
   result.json          # Final run summary with exit code
+  report.html          # HTML report (generated via ppilot report)
 ```
 
 Learned skills are written separately to:
@@ -237,41 +238,6 @@ Learned skills are written separately to:
 | `0` | Gating passed (or repair was applied) |
 | `1` | Gating failed — review found blocking issues |
 | `2` | Runtime error (config, provider failure, etc.) |
-
-## Architecture
-
-```
-src/
-  cli.ts              CLI entrypoint (commander)
-  config.ts           Config loading
-  runner.ts           Main orchestrator
-  learner.ts          Run analysis and skill generation
-  validator.ts        Deterministic checks
-  collector.ts        Artifact collection (git diff, file contents)
-  reviewer.ts         AI reviewer with JSON extraction
-  repairer.ts         AI repair pass
-  gating.ts           Threshold-based pass/fail
-  providers/
-    types.ts          Provider interface
-    claude-code.ts    Claude Code provider
-    codex.ts          Codex provider
-    opencode.ts       OpenCode provider
-    index.ts          Provider factory
-  prompts/
-    builder.ts        Builder prompt template
-    learner.ts        Learner prompt template
-    reviewer.ts       Reviewer prompt template
-    repairer.ts       Repairer prompt template
-  schemas/
-    learn.ts          Zod schemas for learner output
-    review.ts         Zod schemas for review output, validation, artifacts
-    config.ts         Zod schema for config
-  utils/
-    logger.ts         Colored terminal output
-    process.ts        Child process execution
-    git.ts            Git diff/changed files
-    artifacts.ts      Artifact storage
-```
 
 ## Future improvements
 

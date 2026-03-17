@@ -50,6 +50,7 @@ export async function runFeature(opts: FeatureOptions): Promise<RunResult> {
       config: opts.config,
       cwd: opts.cwd,
       store,
+      onData,
     });
     if (planResult === null) {
       log.warn("Planning aborted by user");
@@ -81,6 +82,7 @@ export async function runFeature(opts: FeatureOptions): Promise<RunResult> {
     });
     const prompt = buildPrompt(opts.spec, planText);
     const result = await builder.run(prompt, { cwd: opts.cwd, onData });
+    console.log(result);
     builderSummary = result.output;
     await store.save("builder-output.txt", builderSummary);
     log.success(`Builder finished (exit ${result.exitCode})`);

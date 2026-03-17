@@ -10,6 +10,7 @@ import { ReviewExecutionError, runReview } from "./reviewer.js";
 import { runRepair } from "./repairer.js";
 import { evaluateGating } from "./gating.js";
 import { ArtifactStore, createRunId } from "./utils/artifacts.js";
+import { runPlanner } from "./planner.js";
 import { log } from "./utils/logger.js";
 
 export interface FeatureOptions {
@@ -19,6 +20,7 @@ export interface FeatureOptions {
   skipBuild?: boolean;
   skipReview?: boolean;
   repair?: boolean;
+  plan?: boolean;
 }
 
 export async function runFeature(opts: FeatureOptions): Promise<RunResult> {
@@ -36,6 +38,34 @@ export async function runFeature(opts: FeatureOptions): Promise<RunResult> {
   log.info(`Run ${runId}`);
   log.divider();
 
+  // Step 0: Plan (optional)
+  let planText: string | undefined;
+  if (opts.plan) {
+    const planResult = await runPlanner({
+      spec: opts.spec,
+      config: opts.config,
+      cwd: opts.cwd,
+      store,
+    });
+    if (planResult === null) {
+      log.warn("Planning aborted by user");
+      const abortResult: RunResult = {
+        run_id: runId,
+        spec: opts.spec,
+        started_at: startedAt,
+        completed_at: new Date().toISOString(),
+        builder_provider: opts.config.builder.provider,
+        reviewer_provider: opts.config.reviewer.provider,
+        validation: { all_passed: false },
+        repair_applied: false,
+        exit_code: 2,
+      };
+      await store.save("result.json", abortResult);
+      return abortResult;
+    }
+    planText = planResult.plan;
+  }
+
   // Step 1: Build
   let builderSummary: string | undefined;
   if (!opts.skipBuild) {
@@ -45,7 +75,7 @@ export async function runFeature(opts: FeatureOptions): Promise<RunResult> {
       dangerouslySkipPermissions: opts.config.builder.dangerouslySkipPermissions,
       role: "builder",
     });
-    const prompt = buildPrompt(opts.spec);
+    const prompt = buildPrompt(opts.spec, planText);
     const result = await builder.run(prompt, { cwd: opts.cwd });
     builderSummary = result.output;
     await store.save("builder-output.txt", builderSummary);

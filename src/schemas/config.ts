@@ -37,6 +37,9 @@ export const SafeAgentConfigSchema = BaseAgentConfigSchema.extend({
 });
 
 export const ConfigSchema = z.object({
+  planner: BaseAgentConfigSchema.default({
+    provider: 'claude-code',
+  }),
   builder: BuilderAgentConfigSchema.default({
     provider: 'claude-code',
   }),

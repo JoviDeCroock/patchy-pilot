@@ -4,6 +4,7 @@ import type { AIProvider, ProviderOptions, ProviderResponse } from "./types.js";
 
 export class CodexProvider implements AIProvider {
   readonly name = "codex";
+  readonly supportsContinue = false;
 
   constructor(private options: ProviderOptions = {}) {
     if (options.dangerouslySkipPermissions) {

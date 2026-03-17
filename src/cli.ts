@@ -26,11 +26,14 @@ program
   .option("--no-build", "Skip the build step (review existing changes)")
   .option("--no-review", "Skip the review step")
   .option("--repair", "Enable repair pass if review finds issues")
+  .option("--plan", "Run a planner agent before building")
   .option("--cwd <dir>", "Working directory", process.cwd())
   .option("--builder <provider>", "Override builder provider")
   .option("--reviewer <provider>", "Override reviewer provider")
+  .option("--planner <provider>", "Override planner provider")
   .option("--builder-model <model>", "Override builder model")
   .option("--reviewer-model <model>", "Override reviewer model")
+  .option("--planner-model <model>", "Override planner model")
   .action(async (specArg: string, opts) => {
     try {
       const config = await loadConfig(opts.cwd);
@@ -38,8 +41,10 @@ program
       // Apply CLI overrides
       if (opts.builder) config.builder.provider = opts.builder;
       if (opts.reviewer) config.reviewer.provider = opts.reviewer;
+      if (opts.planner) config.planner.provider = opts.planner;
       if (opts.builderModel) config.builder.model = opts.builderModel;
       if (opts.reviewerModel) config.reviewer.model = opts.reviewerModel;
+      if (opts.plannerModel) config.planner.model = opts.plannerModel;
 
       const spec = await resolveSpec(specArg, opts.cwd);
       const result = await runFeature({
@@ -49,6 +54,7 @@ program
         skipBuild: !opts.build,
         skipReview: !opts.review,
         repair: opts.repair,
+        plan: opts.plan,
       });
 
       process.exit(result.exit_code);

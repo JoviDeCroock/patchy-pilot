@@ -1,4 +1,8 @@
 {
+  "planner": {
+    "provider": "claude-code",
+    "model": "sonnet"
+  },
   "builder": {
     "provider": "claude-code",
     "model": "sonnet",

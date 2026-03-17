@@ -3,6 +3,7 @@ import type { AIProvider, ProviderOptions, ProviderResponse } from "./types.js";
 
 export class PiProvider implements AIProvider {
   readonly name = "pi";
+  readonly supportsContinue = false;
 
   constructor(private options: ProviderOptions = {}) {}
 

@@ -6,8 +6,7 @@ import { log } from "./utils/logger.js";
  *   https://github.com/owner/repo/issues/123
  *   http://github.com/owner/repo/issues/456
  */
-const GITHUB_URL_RE =
-  /^https?:\/\/github\.com\/([^/]+\/[^/]+)\/issues\/(\d+)\/?$/;
+const GITHUB_URL_RE = /^https?:\/\/github\.com\/([^/]+\/[^/]+)\/issues\/(\d+)\/?$/;
 
 /**
  * Matches shorthand references like:
@@ -16,7 +15,7 @@ const GITHUB_URL_RE =
 const SHORTHAND_RE = /^([^/]+\/[^/#]+)#(\d+)$/;
 
 export interface GitHubIssueRef {
-  repo: string;   // "owner/repo"
+  repo: string; // "owner/repo"
   number: number;
 }
 
@@ -57,15 +56,11 @@ export async function fetchGitHubIssue(ref: GitHubIssueRef): Promise<string> {
 
   if (result.exitCode !== 0) {
     const msg = result.stderr.trim() || result.stdout.trim();
-    throw new Error(
-      `Failed to fetch GitHub issue ${ref.repo}#${ref.number}: ${msg}`
-    );
+    throw new Error(`Failed to fetch GitHub issue ${ref.repo}#${ref.number}: ${msg}`);
   }
 
   const data = JSON.parse(result.stdout) as { title: string; body: string };
   const body = (data.body ?? "").trim();
 
-  return body
-    ? `# ${data.title}\n\n${body}`
-    : `# ${data.title}`;
+  return body ? `# ${data.title}\n\n${body}` : `# ${data.title}`;
 }

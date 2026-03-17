@@ -52,9 +52,7 @@ describe("parseGitHubIssue", () => {
   });
 
   it("handles URLs with hyphens in org and repo", () => {
-    const ref = parseGitHubIssue(
-      "https://github.com/my-org/my-repo/issues/500"
-    );
+    const ref = parseGitHubIssue("https://github.com/my-org/my-repo/issues/500");
     expect(ref).toEqual({ repo: "my-org/my-repo", number: 500 });
   });
 });

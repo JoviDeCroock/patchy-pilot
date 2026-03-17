@@ -102,12 +102,12 @@ export async function runFeature(opts: FeatureOptions): Promise<RunResult> {
     validation,
     opts.config,
     opts.cwd,
-    builderSummary
+    builderSummary,
   );
   await store.save("artifacts.json", artifacts);
 
   // Step 4: Review
-  let review: ReviewResult | undefined;  // eslint-disable-line prefer-const -- reassigned in repair loop
+  let review: ReviewResult | undefined; // eslint-disable-line prefer-const -- reassigned in repair loop
   if (!opts.skipReview) {
     const reviewer = createProvider(opts.config.reviewer.provider, {
       model: opts.config.reviewer.model,
@@ -152,7 +152,9 @@ export async function runFeature(opts: FeatureOptions): Promise<RunResult> {
     for (let attempt = 1; attempt <= maxRepairIterations; attempt++) {
       log.step(`Repair attempt ${attempt}/${maxRepairIterations}`);
 
-      const repairOutput = await runRepair(repairer, opts.spec, currentReview, opts.cwd, { onData });
+      const repairOutput = await runRepair(repairer, opts.spec, currentReview, opts.cwd, {
+        onData,
+      });
       await store.save(`repair-output-${attempt}.txt`, repairOutput.output);
       if (repairOutput.exitCode !== 0) {
         throw new Error(`Repairer exited with code ${repairOutput.exitCode}`);
@@ -166,12 +168,14 @@ export async function runFeature(opts: FeatureOptions): Promise<RunResult> {
         validation,
         opts.config,
         opts.cwd,
-        builderSummary
+        builderSummary,
       );
       await store.save(`artifacts-repair-${attempt}.json`, artifacts);
 
       try {
-        currentReview = await runReview(reviewer, artifacts, opts.config.review_rules, opts.cwd, { onData });
+        currentReview = await runReview(reviewer, artifacts, opts.config.review_rules, opts.cwd, {
+          onData,
+        });
       } catch (err) {
         if (err instanceof ReviewExecutionError && err.rawOutput) {
           await store.save(`review-repair-${attempt}-raw-output.txt`, err.rawOutput);
@@ -198,13 +202,7 @@ export async function runFeature(opts: FeatureOptions): Promise<RunResult> {
   }
 
   // Step 7: Final summary
-  const exitCode = review
-    ? gatingPassed
-      ? 0
-      : 1
-    : validation.all_passed
-      ? 0
-      : 1;
+  const exitCode = review ? (gatingPassed ? 0 : 1) : validation.all_passed ? 0 : 1;
 
   const result: RunResult = {
     run_id: runId,
@@ -302,7 +300,11 @@ async function ensureGitignore(cwd: string): Promise<void> {
     await access(gitignorePath);
     const content = await readFile(gitignorePath, "utf-8");
     if (content.includes(GITIGNORE_ENTRY)) return;
-    await writeFile(gitignorePath, content.trimEnd() + `\n\n# Patchy Pilot artifacts\n${GITIGNORE_ENTRY}\n`, "utf-8");
+    await writeFile(
+      gitignorePath,
+      content.trimEnd() + `\n\n# Patchy Pilot artifacts\n${GITIGNORE_ENTRY}\n`,
+      "utf-8",
+    );
     log.detail(`Added ${GITIGNORE_ENTRY} to .gitignore`);
   } catch {
     // No .gitignore exists — create one

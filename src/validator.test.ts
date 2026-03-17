@@ -100,8 +100,7 @@ describe("validate with selective option", () => {
   };
 
   it("selective: true with changed files scopes args", async () => {
-    const { validate, changedFiles, untrackedFiles, exec, ConfigSchema } =
-      await getModules();
+    const { validate, changedFiles, untrackedFiles, exec, ConfigSchema } = await getModules();
     changedFiles.mockResolvedValue(["src/a.ts"]);
     untrackedFiles.mockResolvedValue([]);
     exec.mockResolvedValue({ stdout: "ok", stderr: "", exitCode: 0 });
@@ -121,16 +120,11 @@ describe("validate with selective option", () => {
     expect(result.linter).toBeDefined();
     expect(result.linter!.passed).toBe(true);
     // exec should have been called with scoped args (dot stripped, file appended)
-    expect(exec).toHaveBeenCalledWith(
-      "eslint",
-      ["--fix", "src/a.ts"],
-      { cwd: "/tmp" }
-    );
+    expect(exec).toHaveBeenCalledWith("eslint", ["--fix", "src/a.ts"], { cwd: "/tmp" });
   });
 
   it("selective: true with no changed files skips check", async () => {
-    const { validate, changedFiles, untrackedFiles, exec, ConfigSchema } =
-      await getModules();
+    const { validate, changedFiles, untrackedFiles, exec, ConfigSchema } = await getModules();
     changedFiles.mockResolvedValue([]);
     untrackedFiles.mockResolvedValue([]);
     exec.mockClear();
@@ -156,8 +150,7 @@ describe("validate with selective option", () => {
   });
 
   it("selective: false (default) runs with original args", async () => {
-    const { validate, changedFiles, untrackedFiles, exec, ConfigSchema } =
-      await getModules();
+    const { validate, changedFiles, untrackedFiles, exec, ConfigSchema } = await getModules();
     changedFiles.mockResolvedValue(["src/a.ts"]);
     untrackedFiles.mockResolvedValue([]);
     exec.mockResolvedValue({ stdout: "ok", stderr: "", exitCode: 0 });
@@ -177,10 +170,6 @@ describe("validate with selective option", () => {
     expect(result.typecheck).toBeDefined();
     expect(result.typecheck!.passed).toBe(true);
     // Should run with original args, NOT scoped
-    expect(exec).toHaveBeenCalledWith(
-      "npx",
-      ["tsc", "--noEmit"],
-      { cwd: "/tmp" }
-    );
+    expect(exec).toHaveBeenCalledWith("npx", ["tsc", "--noEmit"], { cwd: "/tmp" });
   });
 });

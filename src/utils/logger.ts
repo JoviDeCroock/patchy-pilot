@@ -20,9 +20,7 @@ export const log = {
     console.log(`${COLORS.gray}[${timestamp()}]${COLORS.reset} ${msg}`);
   },
   step(msg: string) {
-    console.log(
-      `${COLORS.cyan}${COLORS.bold}▶${COLORS.reset} ${COLORS.cyan}${msg}${COLORS.reset}`
-    );
+    console.log(`${COLORS.cyan}${COLORS.bold}▶${COLORS.reset} ${COLORS.cyan}${msg}${COLORS.reset}`);
   },
   success(msg: string) {
     console.log(`${COLORS.green}✓${COLORS.reset} ${msg}`);

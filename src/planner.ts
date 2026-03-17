@@ -27,7 +27,10 @@ export async function runPlanner(opts: {
   log.step("Starting planner");
 
   // First iteration: full prompt with spec
-  const initialResult = await provider.run(plannerPrompt(opts.spec), { cwd: opts.cwd, onData: opts.onData  });
+  const initialResult = await provider.run(plannerPrompt(opts.spec), {
+    cwd: opts.cwd,
+    onData: opts.onData,
+  });
   if (initialResult.exitCode !== 0) {
     throw new Error(`Planner exited with code ${initialResult.exitCode}`);
   }
@@ -74,10 +77,10 @@ export async function runPlanner(opts: {
       });
     } else {
       // Provider doesn't support session continuation — send full context
-      result = await provider.run(
-        plannerFeedbackPrompt(opts.spec, currentPlan, trimmed),
-        { cwd: opts.cwd, onData: opts.onData },
-      );
+      result = await provider.run(plannerFeedbackPrompt(opts.spec, currentPlan, trimmed), {
+        cwd: opts.cwd,
+        onData: opts.onData,
+      });
     }
 
     if (result.exitCode !== 0) {

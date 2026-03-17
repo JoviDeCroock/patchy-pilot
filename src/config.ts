@@ -27,7 +27,7 @@ export async function loadConfig(cwd: string = process.cwd()): Promise<Config> {
 
 function withInferredValidation(
   config: Config,
-  inferredValidation: Partial<Config["validation"]>
+  inferredValidation: Partial<Config["validation"]>,
 ): Config {
   return {
     ...config,

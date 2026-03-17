@@ -8,20 +8,59 @@ import { log } from "./utils/logger.js";
 
 /** File extensions that are almost certainly binary and should be skipped. */
 const BINARY_EXTENSIONS = new Set([
-  ".png", ".jpg", ".jpeg", ".gif", ".bmp", ".ico", ".webp", ".avif", ".svg",
-  ".mp3", ".mp4", ".wav", ".ogg", ".webm", ".avi", ".mov",
-  ".zip", ".tar", ".gz", ".bz2", ".xz", ".7z", ".rar",
-  ".woff", ".woff2", ".ttf", ".otf", ".eot",
-  ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx",
-  ".exe", ".dll", ".so", ".dylib", ".bin",
-  ".pyc", ".pyo", ".class", ".o", ".obj",
-  ".sqlite", ".db",
+  ".png",
+  ".jpg",
+  ".jpeg",
+  ".gif",
+  ".bmp",
+  ".ico",
+  ".webp",
+  ".avif",
+  ".svg",
+  ".mp3",
+  ".mp4",
+  ".wav",
+  ".ogg",
+  ".webm",
+  ".avi",
+  ".mov",
+  ".zip",
+  ".tar",
+  ".gz",
+  ".bz2",
+  ".xz",
+  ".7z",
+  ".rar",
+  ".woff",
+  ".woff2",
+  ".ttf",
+  ".otf",
+  ".eot",
+  ".pdf",
+  ".doc",
+  ".docx",
+  ".xls",
+  ".xlsx",
+  ".ppt",
+  ".pptx",
+  ".exe",
+  ".dll",
+  ".so",
+  ".dylib",
+  ".bin",
+  ".pyc",
+  ".pyo",
+  ".class",
+  ".o",
+  ".obj",
+  ".sqlite",
+  ".db",
   ".lock",
 ]);
 
 /** File names/patterns that likely contain secrets. */
 const SECRET_PATTERNS = [
-  /^\.env($|\.)/,           // .env, .env.local, .env.production, etc.
+  /^\.env($|\.)/, // .env, .env.local, .env.production, etc.
   /^\.env\..+/,
   /^credentials\.json$/,
   /^service[-_]?account.*\.json$/,
@@ -51,7 +90,7 @@ export async function collectArtifacts(
   validation: ValidationResult,
   config: Config,
   cwd: string,
-  builderSummary?: string
+  builderSummary?: string,
 ): Promise<Artifacts> {
   log.step("Collecting artifacts");
 
@@ -84,9 +123,8 @@ export async function collectArtifacts(
     try {
       const content = await readFile(join(cwd, file), "utf-8");
       // Cap individual file size to avoid enormous prompts
-      fileContents[file] = content.length > 20_000
-        ? content.slice(0, 20_000) + "\n... [truncated]"
-        : content;
+      fileContents[file] =
+        content.length > 20_000 ? content.slice(0, 20_000) + "\n... [truncated]" : content;
     } catch {
       fileContents[file] = "[could not read file]";
     }
@@ -99,9 +137,10 @@ export async function collectArtifacts(
     log.detail(`Skipped ${skippedSecret} potential secret file(s)`);
   }
 
-  const diffWithUntracked = newFiles.length > 0
-    ? `${diff}\n\n# Untracked files\n${newFiles.map((file) => `- ${file}`).join("\n")}`
-    : diff;
+  const diffWithUntracked =
+    newFiles.length > 0
+      ? `${diff}\n\n# Untracked files\n${newFiles.map((file) => `- ${file}`).join("\n")}`
+      : diff;
 
   return {
     spec,

@@ -7,7 +7,7 @@ import { log } from "./utils/logger.js";
 export class ReviewExecutionError extends Error {
   constructor(
     message: string,
-    readonly rawOutput?: string
+    readonly rawOutput?: string,
   ) {
     super(message);
     this.name = "ReviewExecutionError";
@@ -19,7 +19,7 @@ export async function runReview(
   artifacts: Artifacts,
   extraRules: string[] = [],
   cwd?: string,
-  options?: { onData?: (chunk: string) => void }
+  options?: { onData?: (chunk: string) => void },
 ): Promise<ReviewResult> {
   log.step(`Starting review with ${provider.name}`);
 
@@ -29,7 +29,7 @@ export async function runReview(
   if (response.exitCode !== 0) {
     throw new ReviewExecutionError(
       `Reviewer exited with code ${response.exitCode}`,
-      response.output
+      response.output,
     );
   }
 
@@ -38,10 +38,7 @@ export async function runReview(
   const json = extractJson(response.output);
   if (!json) {
     log.error("Reviewer did not return valid JSON. Raw output saved to artifacts.");
-    throw new ReviewExecutionError(
-      "Failed to parse reviewer output as JSON",
-      response.output
-    );
+    throw new ReviewExecutionError("Failed to parse reviewer output as JSON", response.output);
   }
 
   const result = ReviewResultSchema.parse(json);
@@ -72,7 +69,7 @@ function warnIfSuspicious(review: ReviewResult, artifacts: Artifacts): void {
     review.merge_recommendation === "safe_to_merge"
   ) {
     log.warn(
-      `Review returned zero issues with ${review.confidence} confidence on a ${diffLines}-line diff across ${changedFileCount} files. This may indicate prompt injection in the spec or diff. Inspect the review manually.`
+      `Review returned zero issues with ${review.confidence} confidence on a ${diffLines}-line diff across ${changedFileCount} files. This may indicate prompt injection in the spec or diff. Inspect the review manually.`,
     );
   }
 }

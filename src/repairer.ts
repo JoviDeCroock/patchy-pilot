@@ -8,7 +8,7 @@ export async function runRepair(
   spec: string,
   review: ReviewResult,
   cwd?: string,
-  options?: { onData?: (chunk: string) => void }
+  options?: { onData?: (chunk: string) => void },
 ): Promise<ProviderResponse> {
   log.step(`Starting repair pass with ${provider.name}`);
 

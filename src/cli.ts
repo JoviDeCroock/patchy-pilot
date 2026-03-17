@@ -170,14 +170,12 @@ program
   .action(async (runIdArg: string | undefined, opts) => {
     try {
       const runsDir = resolve(opts.cwd, opts.artifactsDir);
-      const runId = runIdArg ?? await getMostRecentRunId(runsDir);
+      const runId = runIdArg ?? (await getMostRecentRunId(runsDir));
       const runDir = join(runsDir, runId);
       const data = await loadReportData(runDir);
       const html = generateReport(data);
 
-      const outPath = opts.output
-        ? resolve(opts.output)
-        : join(runDir, "report.html");
+      const outPath = opts.output ? resolve(opts.output) : join(runDir, "report.html");
 
       await writeFile(outPath, html, "utf-8");
       log.success(`Report written to ${outPath}`);
@@ -205,7 +203,7 @@ async function resolveSpec(specArg: string, cwd?: string): Promise<string> {
     if (!filePath.startsWith(projectRoot)) {
       throw new Error(
         `Spec file path "${specArg.slice(1)}" resolves outside the project root. ` +
-        `Resolved: ${filePath}, Root: ${projectRoot}`
+          `Resolved: ${filePath}, Root: ${projectRoot}`,
       );
     }
 

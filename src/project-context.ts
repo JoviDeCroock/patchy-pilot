@@ -73,7 +73,7 @@ async function loadPackageInfo(cwd: string): Promise<{
 
 async function detectPackageManager(
   cwd: string,
-  declaredPackageManager?: string
+  declaredPackageManager?: string,
 ): Promise<string | undefined> {
   if (declaredPackageManager) {
     return declaredPackageManager.split("@")[0];
@@ -102,7 +102,7 @@ async function detectPackageManager(
 
 function inferFromPackageScripts(
   scripts: Record<string, string>,
-  packageManager = "npm"
+  packageManager = "npm",
 ): Partial<Record<ValidationKind, InferredValidationHint>> {
   const inferred: Partial<Record<ValidationKind, InferredValidationHint>> = {};
 
@@ -160,7 +160,7 @@ async function loadCiFiles(cwd: string): Promise<Array<{ path: string; content: 
 }
 
 function inferFromCiFiles(
-  ciFiles: Array<{ path: string; content: string }>
+  ciFiles: Array<{ path: string; content: string }>,
 ): Partial<Record<ValidationKind, InferredValidationHint>> {
   const inferred: Partial<Record<ValidationKind, InferredValidationHint>> = {};
 
@@ -230,12 +230,12 @@ function extractCiRunCommands(content: string): string[] {
     .filter((command) => command.length > 0 && !command.startsWith("#"));
 }
 
-function inferFromCommand(command: string):
-  | { kind: ValidationKind; command: ValidationCommand }
-  | undefined {
+function inferFromCommand(
+  command: string,
+): { kind: ValidationKind; command: ValidationCommand } | undefined {
   const normalized = command.trim();
   const packageScript = normalized.match(
-    /^(npm|pnpm|yarn|bun)\s+(?:run\s+)?([A-Za-z0-9:_-]+|test)\b/
+    /^(npm|pnpm|yarn|bun)\s+(?:run\s+)?([A-Za-z0-9:_-]+|test)\b/,
   );
   if (packageScript) {
     const packageManager = packageScript[1];
@@ -285,10 +285,7 @@ function classifyScriptName(scriptName: string): ValidationKind | undefined {
   return undefined;
 }
 
-function toPackageScriptCommand(
-  packageManager: string,
-  scriptName: string
-): ValidationCommand {
+function toPackageScriptCommand(packageManager: string, scriptName: string): ValidationCommand {
   if (packageManager === "npm" && scriptName === "test") {
     return { command: "npm", args: ["test"], enabled: true, selective: false };
   }
@@ -302,7 +299,7 @@ function toPackageScriptCommand(
 }
 
 function stripHintMetadata(
-  inferred: Partial<Record<ValidationKind, InferredValidationHint>>
+  inferred: Partial<Record<ValidationKind, InferredValidationHint>>,
 ): Partial<Config["validation"]> {
   const stripped: Partial<Config["validation"]> = {};
 
@@ -336,13 +333,7 @@ function truncate(value: string, limit: number): string {
 }
 
 const PACKAGE_SCRIPT_CANDIDATES: Record<ValidationKind, string[]> = {
-  formatter: [
-    "format:check",
-    "fmt:check",
-    "prettier:check",
-    "check:format",
-    "check-format",
-  ],
+  formatter: ["format:check", "fmt:check", "prettier:check", "check:format", "check-format"],
   linter: ["lint", "lint:ci", "eslint", "check:lint"],
   typecheck: ["typecheck", "check-types", "typecheck:ci", "types", "tsc"],
   tests: ["test", "test:ci", "ci:test", "unit", "unit:test"],
@@ -362,17 +353,6 @@ const COMMAND_PATTERNS: Record<ValidationKind, RegExp[]> = {
     /\bgolangci-lint\b/i,
     /\bflake8\b/i,
   ],
-  typecheck: [
-    /\btsc\b.*\s--noEmit\b/i,
-    /\bpyright\b/i,
-    /\bmypy\b/i,
-    /\bcargo\b\s+check\b/i,
-  ],
-  tests: [
-    /\bvitest\b/i,
-    /\bjest\b/i,
-    /\bpytest\b/i,
-    /\bgo\b\s+test\b/i,
-    /\bcargo\b\s+test\b/i,
-  ],
+  typecheck: [/\btsc\b.*\s--noEmit\b/i, /\bpyright\b/i, /\bmypy\b/i, /\bcargo\b\s+check\b/i],
+  tests: [/\bvitest\b/i, /\bjest\b/i, /\bpytest\b/i, /\bgo\b\s+test\b/i, /\bcargo\b\s+test\b/i],
 };

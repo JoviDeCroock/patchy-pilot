@@ -7,20 +7,17 @@ export class PiProvider implements AIProvider {
 
   constructor(private options: ProviderOptions = {}) {}
 
-  async run(
-    prompt: string,
-    options?: ProviderRunOptions
-  ): Promise<ProviderResponse> {
+  async run(prompt: string, options?: ProviderRunOptions): Promise<ProviderResponse> {
     if (this.options.role === "reviewer" || this.options.role === "learner") {
       throw new Error(
-        "Pi coding agent does not expose verified read-only controls for reviewer or learner roles"
+        "Pi coding agent does not expose verified read-only controls for reviewer or learner roles",
       );
     }
 
     if (this.options.dangerouslySkipPermissions) {
       throw new Error(
         "Pi coding agent does not expose a dangerous-permissions flag. " +
-        "Run it in a container or use extensions for custom confirmation flows."
+          "Run it in a container or use extensions for custom confirmation flows.",
       );
     }
 

@@ -4,7 +4,7 @@
  * so this buffers partial lines and calls the handler for each complete line.
  */
 export function createLineParser(
-  onLine: (line: string) => void
+  onLine: (line: string) => void,
 ): ((chunk: string) => void) & { flush(): void } {
   let buffer = "";
 

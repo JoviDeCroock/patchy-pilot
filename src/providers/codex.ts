@@ -1,6 +1,7 @@
 import { exec } from "../utils/process.js";
 import { log } from "../utils/logger.js";
-import type { AIProvider, ProviderOptions, ProviderResponse } from "./types.js";
+import { createLineParser } from "../utils/stream-parser.js";
+import type { AIProvider, ProviderOptions, ProviderResponse, ProviderRunOptions } from "./types.js";
 
 export class CodexProvider implements AIProvider {
   readonly name = "codex";
@@ -18,9 +19,14 @@ export class CodexProvider implements AIProvider {
 
   async run(
     prompt: string,
-    options?: { cwd?: string; timeout?: number }
+    options?: ProviderRunOptions
   ): Promise<ProviderResponse> {
+    const streaming = !!options?.onData;
     const args = ["exec"];
+
+    if (streaming) {
+      args.push("--json");
+    }
 
     if (this.options.dangerouslySkipPermissions) {
       args.unshift("--dangerously-bypass-approvals-and-sandbox");
@@ -34,11 +40,36 @@ export class CodexProvider implements AIProvider {
       args.unshift("--model", this.options.model);
     }
 
+    const collectedText: string[] = [];
+
+    const onData = streaming
+      ? createLineParser((line) => {
+          try {
+            const msg = JSON.parse(line);
+            if (msg.type === "item.completed" && msg.item?.text) {
+              collectedText.push(msg.item.text);
+              options!.onData!(msg.item.text + "\n");
+            }
+          } catch {
+            // Skip malformed lines
+          }
+        })
+      : undefined;
+
     const result = await exec("codex", args, {
       cwd: options?.cwd,
       stdin: prompt,
       timeout: options?.timeout ?? 600_000,
+      onData,
     });
+
+    if (streaming) {
+      onData!.flush();
+      return {
+        output: collectedText.join("\n") || result.stdout,
+        exitCode: result.exitCode,
+      };
+    }
 
     return {
       output: result.stdout + result.stderr,

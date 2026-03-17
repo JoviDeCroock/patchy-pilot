@@ -21,6 +21,8 @@ export interface FeatureOptions {
   skipReview?: boolean;
   repair?: boolean;
   plan?: boolean;
+  /** Suppress real-time streamed output from provider steps. */
+  silent?: boolean;
 }
 
 export async function runFeature(opts: FeatureOptions): Promise<RunResult> {
@@ -38,6 +40,8 @@ export async function runFeature(opts: FeatureOptions): Promise<RunResult> {
   log.info(`Run ${runId}`);
   log.divider();
 
+  const onData = opts.silent ? undefined : (chunk: string) => log.stream(chunk);
+
   // Step 0: Plan (optional)
   let planText: string | undefined;
   if (opts.plan) {
@@ -46,6 +50,7 @@ export async function runFeature(opts: FeatureOptions): Promise<RunResult> {
       config: opts.config,
       cwd: opts.cwd,
       store,
+      onData,
     });
     if (planResult === null) {
       log.warn("Planning aborted by user");
@@ -76,7 +81,7 @@ export async function runFeature(opts: FeatureOptions): Promise<RunResult> {
       role: "builder",
     });
     const prompt = buildPrompt(opts.spec, planText);
-    const result = await builder.run(prompt, { cwd: opts.cwd });
+    const result = await builder.run(prompt, { cwd: opts.cwd, onData });
     builderSummary = result.output;
     await store.save("builder-output.txt", builderSummary);
     log.success(`Builder finished (exit ${result.exitCode})`);
@@ -109,7 +114,7 @@ export async function runFeature(opts: FeatureOptions): Promise<RunResult> {
       role: "reviewer",
     });
     try {
-      review = await runReview(reviewer, artifacts, opts.config.review_rules, opts.cwd);
+      review = await runReview(reviewer, artifacts, opts.config.review_rules, opts.cwd, { onData });
       await store.save("review.json", review);
       printReviewSummary(review);
     } catch (err) {
@@ -147,7 +152,7 @@ export async function runFeature(opts: FeatureOptions): Promise<RunResult> {
     for (let attempt = 1; attempt <= maxRepairIterations; attempt++) {
       log.step(`Repair attempt ${attempt}/${maxRepairIterations}`);
 
-      const repairOutput = await runRepair(repairer, opts.spec, currentReview, opts.cwd);
+      const repairOutput = await runRepair(repairer, opts.spec, currentReview, opts.cwd, { onData });
       await store.save(`repair-output-${attempt}.txt`, repairOutput.output);
       if (repairOutput.exitCode !== 0) {
         throw new Error(`Repairer exited with code ${repairOutput.exitCode}`);
@@ -166,7 +171,7 @@ export async function runFeature(opts: FeatureOptions): Promise<RunResult> {
       await store.save(`artifacts-repair-${attempt}.json`, artifacts);
 
       try {
-        currentReview = await runReview(reviewer, artifacts, opts.config.review_rules, opts.cwd);
+        currentReview = await runReview(reviewer, artifacts, opts.config.review_rules, opts.cwd, { onData });
       } catch (err) {
         if (err instanceof ReviewExecutionError && err.rawOutput) {
           await store.save(`review-repair-${attempt}-raw-output.txt`, err.rawOutput);
@@ -232,6 +237,7 @@ export interface ReviewOnlyOptions {
   spec: string;
   config: Config;
   cwd: string;
+  silent?: boolean;
 }
 
 export interface ReviewOnlyResult {
@@ -251,6 +257,8 @@ export async function runReviewOnly(opts: ReviewOnlyOptions): Promise<ReviewOnly
   log.info(`Review-only run ${runId}`);
   log.divider();
 
+  const onData = opts.silent ? undefined : (chunk: string) => log.stream(chunk);
+
   const validation = await validate(opts.config, opts.cwd);
   const artifacts = await collectArtifacts(opts.spec, validation, opts.config, opts.cwd);
   await store.save("artifacts.json", artifacts);
@@ -261,7 +269,7 @@ export async function runReviewOnly(opts: ReviewOnlyOptions): Promise<ReviewOnly
   });
   let review: ReviewResult;
   try {
-    review = await runReview(reviewer, artifacts, opts.config.review_rules, opts.cwd);
+    review = await runReview(reviewer, artifacts, opts.config.review_rules, opts.cwd, { onData });
   } catch (err) {
     if (err instanceof ReviewExecutionError && err.rawOutput) {
       await store.save("review-raw-output.txt", err.rawOutput);

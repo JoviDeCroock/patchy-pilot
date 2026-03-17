@@ -36,6 +36,10 @@ export const log = {
   detail(msg: string) {
     console.log(`  ${COLORS.dim}${msg}${COLORS.reset}`);
   },
+  /** Write raw streaming output without adding newlines. Dimmed to distinguish from structured logs. */
+  stream(chunk: string) {
+    process.stderr.write(`${COLORS.dim}${chunk}${COLORS.reset}`);
+  },
   divider() {
     console.log(`${COLORS.dim}${"─".repeat(60)}${COLORS.reset}`);
   },

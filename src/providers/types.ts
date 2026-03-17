@@ -11,6 +11,14 @@ export interface ProviderOptions {
   role?: ProviderRole;
 }
 
+export interface ProviderRunOptions {
+  cwd?: string;
+  timeout?: number;
+  continue?: boolean;
+  /** Called with each chunk of output as it arrives. */
+  onData?: (chunk: string) => void;
+}
+
 export interface AIProvider {
   readonly name: string;
 
@@ -18,5 +26,5 @@ export interface AIProvider {
   readonly supportsContinue: boolean;
 
   /** Run the AI tool with a prompt. Returns the combined output. */
-  run(prompt: string, options?: { cwd?: string; timeout?: number; continue?: boolean }): Promise<ProviderResponse>;
+  run(prompt: string, options?: ProviderRunOptions): Promise<ProviderResponse>;
 }

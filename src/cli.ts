@@ -27,6 +27,7 @@ program
   .option("--no-review", "Skip the review step")
   .option("--repair", "Enable repair pass if review finds issues")
   .option("--plan", "Run a planner agent before building")
+  .option("--silent", "Suppress real-time streamed output from provider steps")
   .option("--cwd <dir>", "Working directory", process.cwd())
   .option("--builder <provider>", "Override builder provider")
   .option("--reviewer <provider>", "Override reviewer provider")
@@ -55,6 +56,7 @@ program
         skipReview: !opts.review,
         repair: opts.repair,
         plan: opts.plan,
+        silent: opts.silent,
       });
 
       process.exit(result.exit_code);
@@ -68,6 +70,7 @@ program
   .command("review")
   .description("Review-only: analyze existing changes against a spec")
   .argument("<spec>", "Feature specification (inline text or @path/to/file)")
+  .option("--silent", "Suppress real-time streamed output from provider steps")
   .option("--cwd <dir>", "Working directory", process.cwd())
   .option("--reviewer <provider>", "Override reviewer provider")
   .option("--reviewer-model <model>", "Override reviewer model")
@@ -82,6 +85,7 @@ program
         spec,
         config,
         cwd: resolve(opts.cwd),
+        silent: opts.silent,
       });
 
       process.exit(result.validation.all_passed && result.gating.passed ? 0 : 1);
@@ -96,6 +100,7 @@ program
   .description("Repair pass: fix issues from a review result file")
   .argument("<review-file>", "Path to review.json from a previous run")
   .argument("<spec>", "Original specification (inline text or @path/to/file)")
+  .option("--silent", "Suppress real-time streamed output from provider steps")
   .option("--cwd <dir>", "Working directory", process.cwd())
   .option("--repairer <provider>", "Override repairer provider")
   .option("--repairer-model <model>", "Override repairer model")
@@ -113,7 +118,8 @@ program
         model: config.repairer.model,
         role: "repairer",
       });
-      const output = await runRepair(provider, spec, review, resolve(opts.cwd));
+      const onData = opts.silent ? undefined : (chunk: string) => log.stream(chunk);
+      const output = await runRepair(provider, spec, review, resolve(opts.cwd), { onData });
 
       console.log(output.output);
       process.exit(output.exitCode === 0 ? 0 : 2);

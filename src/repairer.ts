@@ -7,12 +7,13 @@ export async function runRepair(
   provider: AIProvider,
   spec: string,
   review: ReviewResult,
-  cwd?: string
+  cwd?: string,
+  options?: { onData?: (chunk: string) => void }
 ): Promise<ProviderResponse> {
   log.step(`Starting repair pass with ${provider.name}`);
 
   const prompt = repairPrompt(spec, review);
-  const response = await provider.run(prompt, { cwd });
+  const response = await provider.run(prompt, { cwd, onData: options?.onData });
 
   log.detail("Repair pass completed");
   return response;

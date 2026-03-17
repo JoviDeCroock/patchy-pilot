@@ -274,5 +274,3 @@ Learned skills are written separately to:
 - Review history and trend tracking
 - Multi-file focus analysis (changed files + nearby impacted files)
 - Create and open the report by default after a run
-- ~~Make `--stream` the default and replace it with `--silent`~~
-- Make `selective` an option during gating which will run the check with only the changed files

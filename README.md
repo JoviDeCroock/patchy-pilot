@@ -61,8 +61,8 @@ ppilot feature --plan "Add retry mechanism"
 # Enable automatic repair if review finds issues
 ppilot feature --repair "Add retry mechanism"
 
-# Stream real-time output from builder/reviewer/repairer
-ppilot feature --stream "Add retry mechanism"
+# Suppress real-time streamed output (streaming is on by default)
+ppilot feature --silent "Add retry mechanism"
 
 # Override providers
 ppilot feature --builder claude-code --reviewer claude-code "Add retry mechanism"
@@ -90,7 +90,7 @@ Review-only: run validation and AI review on existing changes without building f
 ```bash
 ppilot review "The changes should implement a retry mechanism with exponential backoff"
 ppilot review @specs/retry-mechanism.md
-ppilot review --stream "Add retry mechanism"
+ppilot review --silent "Add retry mechanism"
 ```
 
 ### `ppilot repair <review-file> <spec>`

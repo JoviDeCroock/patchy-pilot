@@ -86,10 +86,10 @@ export class ClaudeCodeProvider implements AIProvider {
 }
 
 /** Extract text content from a Claude assistant message */
-function extractAssistantText(message: { content?: Array<{ type: string; text?: string }> }): string {
+function extractAssistantText(message: { content?: Array<{ type: string; text?: string; name?: string; input?: any }> }): string {
   if (!message?.content) return "";
   return message.content
-    .filter((b) => b.type === "text" && b.text)
-    .map((b) => b.text)
+    .filter((b) => b.type === "text" && b.text || b.type === 'tool_use')
+    .map((b) => b.text || b.name + JSON.stringify(b.input))
     .join("");
 }

@@ -21,8 +21,8 @@ export interface FeatureOptions {
   skipReview?: boolean;
   repair?: boolean;
   plan?: boolean;
-  /** Stream real-time output from provider steps to the terminal. */
-  stream?: boolean;
+  /** Suppress real-time streamed output from provider steps. */
+  silent?: boolean;
 }
 
 export async function runFeature(opts: FeatureOptions): Promise<RunResult> {
@@ -40,7 +40,7 @@ export async function runFeature(opts: FeatureOptions): Promise<RunResult> {
   log.info(`Run ${runId}`);
   log.divider();
 
-  const onData = opts.stream ? (chunk: string) => log.stream(chunk) : undefined;
+  const onData = opts.silent ? undefined : (chunk: string) => log.stream(chunk);
 
   // Step 0: Plan (optional)
   let planText: string | undefined;
@@ -82,7 +82,6 @@ export async function runFeature(opts: FeatureOptions): Promise<RunResult> {
     });
     const prompt = buildPrompt(opts.spec, planText);
     const result = await builder.run(prompt, { cwd: opts.cwd, onData });
-    console.log(result);
     builderSummary = result.output;
     await store.save("builder-output.txt", builderSummary);
     log.success(`Builder finished (exit ${result.exitCode})`);
@@ -238,7 +237,7 @@ export interface ReviewOnlyOptions {
   spec: string;
   config: Config;
   cwd: string;
-  stream?: boolean;
+  silent?: boolean;
 }
 
 export interface ReviewOnlyResult {
@@ -258,7 +257,7 @@ export async function runReviewOnly(opts: ReviewOnlyOptions): Promise<ReviewOnly
   log.info(`Review-only run ${runId}`);
   log.divider();
 
-  const onData = opts.stream ? (chunk: string) => log.stream(chunk) : undefined;
+  const onData = opts.silent ? undefined : (chunk: string) => log.stream(chunk);
 
   const validation = await validate(opts.config, opts.cwd);
   const artifacts = await collectArtifacts(opts.spec, validation, opts.config, opts.cwd);

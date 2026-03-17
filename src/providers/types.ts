@@ -3,7 +3,7 @@ export interface ProviderResponse {
   exitCode: number;
 }
 
-export type ProviderRole = "builder" | "reviewer" | "repairer" | "learner";
+export type ProviderRole = "builder" | "reviewer" | "repairer" | "learner" | "planner";
 
 export interface ProviderOptions {
   model?: string;
@@ -14,6 +14,9 @@ export interface ProviderOptions {
 export interface AIProvider {
   readonly name: string;
 
+  /** Whether the provider supports continuing a previous session. */
+  readonly supportsContinue: boolean;
+
   /** Run the AI tool with a prompt. Returns the combined output. */
-  run(prompt: string, options?: { cwd?: string; timeout?: number }): Promise<ProviderResponse>;
+  run(prompt: string, options?: { cwd?: string; timeout?: number; continue?: boolean }): Promise<ProviderResponse>;
 }

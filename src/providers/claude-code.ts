@@ -4,6 +4,7 @@ import type { AIProvider, ProviderOptions, ProviderResponse } from "./types.js";
 
 export class ClaudeCodeProvider implements AIProvider {
   readonly name = "claude-code";
+  readonly supportsContinue = true;
 
   constructor(private options: ProviderOptions = {}) {
     if (options.dangerouslySkipPermissions) {
@@ -17,9 +18,13 @@ export class ClaudeCodeProvider implements AIProvider {
 
   async run(
     prompt: string,
-    options?: { cwd?: string; timeout?: number }
+    options?: { cwd?: string; timeout?: number; continue?: boolean }
   ): Promise<ProviderResponse> {
     const args = ["--print"];
+
+    if (options?.continue) {
+      args.push("--continue");
+    }
 
     if (this.options.dangerouslySkipPermissions) {
       args.unshift("--dangerously-skip-permissions");

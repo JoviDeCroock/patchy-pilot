@@ -3,6 +3,7 @@ import type { AIProvider, ProviderOptions, ProviderResponse } from "./types.js";
 
 export class OpenCodeProvider implements AIProvider {
   readonly name = "opencode";
+  readonly supportsContinue = false;
 
   constructor(private options: ProviderOptions = {}) {}
 

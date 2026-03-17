@@ -17,9 +17,15 @@
     "build": "tsc",
     "dev": "tsx src/cli.ts",
     "start": "node dist/cli.js",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
   },
-  "keywords": ["ai", "code-review", "workflow", "cli"],
+  "keywords": [
+    "ai",
+    "code-review",
+    "workflow",
+    "cli"
+  ],
   "license": "MIT",
   "dependencies": {
     "commander": "^13.1.0",
@@ -28,6 +34,7 @@
   "devDependencies": {
     "@types/node": "^22.10.0",
     "tsx": "^4.19.0",
-    "typescript": "^5.7.0"
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0"
   }
 }

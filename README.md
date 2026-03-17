@@ -99,7 +99,7 @@ Run a repair pass using findings from a previous review.
 
 ```bash
 ppilot repair .patchy-pilot/runs/2026-03-16T14-30-00/review.json @specs/retry-mechanism.md
-ppilot repair --stream .patchy-pilot/runs/2026-03-16T14-30-00/review.json @specs/retry-mechanism.md
+ppilot repair --silent .patchy-pilot/runs/2026-03-16T14-30-00/review.json @specs/retry-mechanism.md
 ```
 
 ### `ppilot learn`
@@ -202,7 +202,7 @@ If you want to override providers, thresholds, or validation commands, create a 
 
 | Provider | Command | Notes |
 |---|---|---|
-| `claude-code` | `claude --print` | Claude Code CLI; reviewer/learner run with tools disabled |
+| `claude-code` | `claude` | Claude Code CLI; reviewer/learner run with tools disabled |
 | `codex` | `codex exec` | OpenAI Codex CLI; reviewer/learner run in read-only sandbox |
 | `opencode` | `opencode run` | OpenCode CLI; builder/repairer only because read-only review mode is not verified |
 | `pi` | `pi -p` | Pi coding agent; builder/repairer only because read-only review mode is not verified |
@@ -272,5 +272,5 @@ Learned skills are written separately to:
 - Review history and trend tracking
 - Multi-file focus analysis (changed files + nearby impacted files)
 - Create and open the report by default after a run
-- Make `--stream` the default and replace it with `--silent`
+- ~~Make `--stream` the default and replace it with `--silent`~~
 - Make `selective` an option during gating which will run the check with only the changed files

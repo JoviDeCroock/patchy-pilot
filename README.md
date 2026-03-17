@@ -7,15 +7,16 @@ One AI builds. Another AI reviews. Deterministic checks run in between. Everythi
 ## How it works
 
 ```
-spec → builder AI → formatter/linter/typecheck/tests → artifact collection → reviewer AI → gating → (optional repair)
+spec → (optional plan) → builder AI → formatter/linter/typecheck/tests → artifact collection → reviewer AI → gating → (optional repair)
 ```
 
-1. A **builder** AI implements a feature from a spec
-2. **Deterministic validation** runs (formatter, linter, typecheck, tests)
-3. **Artifacts** are collected (git diff, changed files, test output)
-4. A separate **reviewer** AI independently inspects the result
-5. **Gating** checks whether the review passes severity thresholds
-6. An optional **repair** pass fixes issues the reviewer found
+1. An optional **planner** AI analyzes the spec and proposes an implementation plan for user approval
+2. A **builder** AI implements a feature from the spec (and plan, if provided)
+3. **Deterministic validation** runs (formatter, linter, typecheck, tests)
+4. **Artifacts** are collected (git diff, changed files, test output)
+5. A separate **reviewer** AI independently inspects the result
+6. **Gating** checks whether the review passes severity thresholds
+7. An optional **repair** pass fixes issues the reviewer found
 
 The reviewer is independent from the builder — it doesn't trust the builder's output and verifies everything against the original spec and the actual code.
 
@@ -54,12 +55,30 @@ ppilot feature @specs/retry-mechanism.md
 # Skip the build step (review existing uncommitted changes)
 ppilot feature --no-build "Add retry mechanism"
 
+# Run a planner step first — review and approve a plan before building
+ppilot feature --plan "Add retry mechanism"
+
 # Enable automatic repair if review finds issues
 ppilot feature --repair "Add retry mechanism"
 
 # Override providers
 ppilot feature --builder claude-code --reviewer claude-code "Add retry mechanism"
+
+# Override the planner provider/model
+ppilot feature --plan --planner claude-code --planner-model opus "Add retry mechanism"
 ```
+
+#### Plan mode
+
+When `--plan` is passed, a planner agent reads the codebase and spec, then produces an implementation plan before building. You review the plan interactively:
+
+- **Accept** (press Enter, `y`, or `accept`) — the plan is passed to the builder alongside the spec
+- **Feedback** (type any text) — the planner revises the plan incorporating your feedback, then re-presents it
+- **Quit** (`q` or `quit`) — aborts the run with exit code 2
+
+For providers that support session continuation (currently `claude-code`), feedback rounds reuse the same session so the planner keeps its codebase context. Other providers fall back to a full re-prompt with the spec, previous plan, and feedback included.
+
+Each plan iteration is saved as `plan-v1.md`, `plan-v2.md`, etc. in the run's artifact directory.
 
 ### `ppilot review <spec>`
 
@@ -155,6 +174,8 @@ If you want to override providers, thresholds, or validation commands, create a 
 
 | Field | Description | Default |
 |---|---|---|
+| `planner.provider` | AI tool for plan mode | `claude-code` |
+| `planner.model` | Model override for planner | (provider default) |
 | `builder.provider` | AI tool for building | `claude-code` |
 | `builder.model` | Model override for builder | (provider default) |
 | `builder.dangerouslySkipPermissions` | Skip provider permission prompts/sandbox when supported; use only in an external sandbox | `false` |
@@ -194,6 +215,7 @@ Each run saves artifacts to `.patchy-pilot/runs/<timestamp>/`:
 ```
 .patchy-pilot/runs/2026-03-16T14-30-00/
   spec.md              # Original specification
+  plan-v1.md           # Implementation plan (if --plan was used)
   builder-output.txt   # Builder's stdout/stderr
   validation.json      # Formatter/linter/typecheck/test results
   artifacts.json       # Collected context (diff, files, validation)

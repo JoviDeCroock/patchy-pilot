@@ -61,6 +61,9 @@ ppilot feature --plan "Add retry mechanism"
 # Enable automatic repair if review finds issues
 ppilot feature --repair "Add retry mechanism"
 
+# Stream real-time output from builder/reviewer/repairer
+ppilot feature --stream "Add retry mechanism"
+
 # Override providers
 ppilot feature --builder claude-code --reviewer claude-code "Add retry mechanism"
 
@@ -87,6 +90,7 @@ Review-only: run validation and AI review on existing changes without building f
 ```bash
 ppilot review "The changes should implement a retry mechanism with exponential backoff"
 ppilot review @specs/retry-mechanism.md
+ppilot review --stream "Add retry mechanism"
 ```
 
 ### `ppilot repair <review-file> <spec>`
@@ -95,6 +99,7 @@ Run a repair pass using findings from a previous review.
 
 ```bash
 ppilot repair .patchy-pilot/runs/2026-03-16T14-30-00/review.json @specs/retry-mechanism.md
+ppilot repair --stream .patchy-pilot/runs/2026-03-16T14-30-00/review.json @specs/retry-mechanism.md
 ```
 
 ### `ppilot learn`
@@ -264,7 +269,8 @@ Learned skills are written separately to:
 ## Future improvements
 
 - Claude Code hooks integration (trigger review on `PostToolUse` or session end)
-- Watch mode for continuous review during development
 - Review history and trend tracking
 - Multi-file focus analysis (changed files + nearby impacted files)
-- Parallel validation steps with streaming output
+- Create and open the report by default after a run
+- Make `--stream` the default and replace it with `--silent`
+- Make `selective` an option during gating which will run the check with only the changed files

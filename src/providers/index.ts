@@ -19,4 +19,4 @@ export function createProvider(name: string, options: ProviderOptions = {}): AIP
   }
 }
 
-export type { AIProvider, ProviderOptions, ProviderResponse } from "./types.js";
+export type { AIProvider, ProviderOptions, ProviderResponse, ProviderRunOptions } from "./types.js";

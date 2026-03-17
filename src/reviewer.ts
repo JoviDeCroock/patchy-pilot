@@ -18,12 +18,13 @@ export async function runReview(
   provider: AIProvider,
   artifacts: Artifacts,
   extraRules: string[] = [],
-  cwd?: string
+  cwd?: string,
+  options?: { onData?: (chunk: string) => void }
 ): Promise<ReviewResult> {
   log.step(`Starting review with ${provider.name}`);
 
   const prompt = reviewPrompt(artifacts, extraRules);
-  const response = await provider.run(prompt, { cwd });
+  const response = await provider.run(prompt, { cwd, onData: options?.onData });
 
   if (response.exitCode !== 0) {
     throw new ReviewExecutionError(
@@ -77,7 +78,7 @@ function warnIfSuspicious(review: ReviewResult, artifacts: Artifacts): void {
 }
 
 /** Extract JSON from a response that may contain markdown fences or surrounding text */
-function extractJson(text: string): unknown | null {
+export function extractJson(text: string): unknown | null {
   // Try direct parse first
   try {
     return JSON.parse(text.trim());

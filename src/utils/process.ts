@@ -18,6 +18,7 @@ export function exec(
     env?: Record<string, string>;
     stdin?: string;
     timeout?: number;
+    onData?: (chunk: string) => void;
   }
 ): Promise<ExecResult> {
   return new Promise((resolve, reject) => {
@@ -31,8 +32,14 @@ export function exec(
     const stdout: Buffer[] = [];
     const stderr: Buffer[] = [];
 
-    proc.stdout.on("data", (chunk) => stdout.push(chunk));
-    proc.stderr.on("data", (chunk) => stderr.push(chunk));
+    proc.stdout.on("data", (chunk) => {
+      stdout.push(chunk);
+      options?.onData?.(chunk.toString());
+    });
+    proc.stderr.on("data", (chunk) => {
+      stderr.push(chunk);
+      options?.onData?.(chunk.toString());
+    });
 
     if (options?.stdin) {
       proc.stdin.write(options.stdin);

@@ -1,5 +1,5 @@
 import { exec } from "../utils/process.js";
-import type { AIProvider, ProviderOptions, ProviderResponse } from "./types.js";
+import type { AIProvider, ProviderOptions, ProviderResponse, ProviderRunOptions } from "./types.js";
 
 export class PiProvider implements AIProvider {
   readonly name = "pi";
@@ -9,7 +9,7 @@ export class PiProvider implements AIProvider {
 
   async run(
     prompt: string,
-    options?: { cwd?: string; timeout?: number }
+    options?: ProviderRunOptions
   ): Promise<ProviderResponse> {
     if (this.options.role === "reviewer" || this.options.role === "learner") {
       throw new Error(
@@ -32,6 +32,7 @@ export class PiProvider implements AIProvider {
     const result = await exec("pi", args, {
       cwd: options?.cwd,
       timeout: options?.timeout ?? 600_000,
+      onData: options?.onData,
     });
 
     return {

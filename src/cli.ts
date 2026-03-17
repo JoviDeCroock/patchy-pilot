@@ -4,6 +4,7 @@ import { Command } from "commander";
 import { readFile, readdir, writeFile } from "node:fs/promises";
 import { resolve, join } from "node:path";
 import { loadConfig } from "./config.js";
+import { parseGitHubIssue, fetchGitHubIssue } from "./github-issue.js";
 import { runLearn } from "./learner.js";
 import { runFeature, runReviewOnly } from "./runner.js";
 import { runRepair } from "./repairer.js";
@@ -176,8 +177,14 @@ program
 
 program.parse();
 
-/** Resolve spec from inline text or @file reference */
+/** Resolve spec from inline text, @file reference, or GitHub issue reference */
 async function resolveSpec(specArg: string, cwd?: string): Promise<string> {
+  // Check for GitHub issue reference (URL or owner/repo#123)
+  const issueRef = parseGitHubIssue(specArg);
+  if (issueRef) {
+    return fetchGitHubIssue(issueRef);
+  }
+
   if (specArg.startsWith("@")) {
     const projectRoot = resolve(cwd ?? process.cwd());
     const filePath = resolve(projectRoot, specArg.slice(1));

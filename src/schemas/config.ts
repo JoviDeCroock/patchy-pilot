@@ -11,6 +11,7 @@ export const ValidationCommandSchema = z.object({
   command: z.string(),
   args: z.array(z.string()).default([]),
   enabled: z.boolean().default(true),
+  selective: z.boolean().default(false),
 });
 export type ValidationCommand = z.infer<typeof ValidationCommandSchema>;
 

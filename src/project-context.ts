@@ -175,6 +175,7 @@ function inferFromCiFiles(
         command: candidate.command.command,
         args: candidate.command.args,
         enabled: true,
+        selective: false,
         source: "ci",
         detail: `Derived from ${file.path}: \`${command}\``,
       };
@@ -263,6 +264,7 @@ function inferFromCommand(command: string):
           command: binary,
           args,
           enabled: true,
+          selective: false,
         },
       };
     }
@@ -288,13 +290,14 @@ function toPackageScriptCommand(
   scriptName: string
 ): ValidationCommand {
   if (packageManager === "npm" && scriptName === "test") {
-    return { command: "npm", args: ["test"], enabled: true };
+    return { command: "npm", args: ["test"], enabled: true, selective: false };
   }
 
   return {
     command: packageManager,
     args: ["run", scriptName],
     enabled: true,
+    selective: false,
   };
 }
 
@@ -313,6 +316,7 @@ function stripHintMetadata(
       command: hint.command,
       args: hint.args,
       enabled: hint.enabled,
+      selective: hint.selective,
     };
   }
 

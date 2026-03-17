@@ -22,22 +22,26 @@
     "formatter": {
       "command": "npx",
       "args": ["prettier", "--check", "."],
-      "enabled": false
+      "enabled": false,
+      "selective": true
     },
     "linter": {
       "command": "npx",
       "args": ["eslint", "."],
-      "enabled": false
+      "enabled": false,
+      "selective": true
     },
     "typecheck": {
       "command": "npx",
       "args": ["tsc", "--noEmit"],
-      "enabled": false
+      "enabled": false,
+      "selective": false
     },
     "tests": {
       "command": "npm",
       "args": ["test"],
-      "enabled": false
+      "enabled": false,
+      "selective": false
     }
   },
   "thresholds": {

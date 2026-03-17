@@ -1,5 +1,18 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { buildScopedArgs } from "./validator.js";
+
+vi.mock("./utils/git.js", () => ({
+  changedFiles: vi.fn().mockResolvedValue([]),
+  untrackedFiles: vi.fn().mockResolvedValue([]),
+}));
+
+vi.mock("./utils/process.js", () => ({
+  exec: vi.fn().mockResolvedValue({ stdout: "ok", stderr: "", exitCode: 0 }),
+}));
+
+vi.mock("./utils/logger.js", () => ({
+  log: { step: vi.fn(), detail: vi.fn(), success: vi.fn(), warn: vi.fn() },
+}));
 
 describe("buildScopedArgs", () => {
   it("appends files directly for non-package-manager commands", () => {
@@ -67,5 +80,107 @@ describe("buildScopedArgs", () => {
     const original = ["--check", "."];
     buildScopedArgs("prettier", original, ["a.ts"]);
     expect(original).toEqual(["--check", "."]);
+  });
+});
+
+describe("validate with selective option", () => {
+  // Dynamic imports so mocks are in place
+  const getModules = async () => {
+    const { validate } = await import("./validator.js");
+    const { changedFiles, untrackedFiles } = await import("./utils/git.js");
+    const { exec } = await import("./utils/process.js");
+    const { ConfigSchema } = await import("./schemas/config.js");
+    return {
+      validate,
+      changedFiles: changedFiles as ReturnType<typeof vi.fn>,
+      untrackedFiles: untrackedFiles as ReturnType<typeof vi.fn>,
+      exec: exec as ReturnType<typeof vi.fn>,
+      ConfigSchema,
+    };
+  };
+
+  it("selective: true with changed files scopes args", async () => {
+    const { validate, changedFiles, untrackedFiles, exec, ConfigSchema } =
+      await getModules();
+    changedFiles.mockResolvedValue(["src/a.ts"]);
+    untrackedFiles.mockResolvedValue([]);
+    exec.mockResolvedValue({ stdout: "ok", stderr: "", exitCode: 0 });
+
+    const config = ConfigSchema.parse({
+      validation: {
+        linter: {
+          command: "eslint",
+          args: ["--fix", "."],
+          enabled: true,
+          selective: true,
+        },
+      },
+    });
+
+    const result = await validate(config, "/tmp");
+    expect(result.linter).toBeDefined();
+    expect(result.linter!.passed).toBe(true);
+    // exec should have been called with scoped args (dot stripped, file appended)
+    expect(exec).toHaveBeenCalledWith(
+      "eslint",
+      ["--fix", "src/a.ts"],
+      { cwd: "/tmp" }
+    );
+  });
+
+  it("selective: true with no changed files skips check", async () => {
+    const { validate, changedFiles, untrackedFiles, exec, ConfigSchema } =
+      await getModules();
+    changedFiles.mockResolvedValue([]);
+    untrackedFiles.mockResolvedValue([]);
+    exec.mockClear();
+
+    const config = ConfigSchema.parse({
+      validation: {
+        linter: {
+          command: "eslint",
+          args: ["."],
+          enabled: true,
+          selective: true,
+        },
+      },
+    });
+
+    const result = await validate(config, "/tmp");
+    expect(result.linter).toEqual({
+      passed: true,
+      output: "No changed files to check.",
+    });
+    // exec should NOT have been called for the linter
+    expect(exec).not.toHaveBeenCalled();
+  });
+
+  it("selective: false (default) runs with original args", async () => {
+    const { validate, changedFiles, untrackedFiles, exec, ConfigSchema } =
+      await getModules();
+    changedFiles.mockResolvedValue(["src/a.ts"]);
+    untrackedFiles.mockResolvedValue([]);
+    exec.mockResolvedValue({ stdout: "ok", stderr: "", exitCode: 0 });
+
+    const config = ConfigSchema.parse({
+      validation: {
+        typecheck: {
+          command: "npx",
+          args: ["tsc", "--noEmit"],
+          enabled: true,
+          // selective defaults to false
+        },
+      },
+    });
+
+    const result = await validate(config, "/tmp");
+    expect(result.typecheck).toBeDefined();
+    expect(result.typecheck!.passed).toBe(true);
+    // Should run with original args, NOT scoped
+    expect(exec).toHaveBeenCalledWith(
+      "npx",
+      ["tsc", "--noEmit"],
+      { cwd: "/tmp" }
+    );
   });
 });

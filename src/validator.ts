@@ -6,13 +6,26 @@ import { log } from "./utils/logger.js";
 
 async function runCheck(
   name: string,
-  config: { command: string; args: string[]; enabled: boolean } | undefined,
-  cwd: string
+  config: { command: string; args: string[]; enabled: boolean; selective: boolean } | undefined,
+  cwd: string,
+  changedFiles: string[]
 ): Promise<{ passed: boolean; output: string } | undefined> {
   if (!config || !config.enabled) return undefined;
 
-  log.detail(`Running ${name}: ${config.command} ${config.args.join(" ")}`);
-  const result = await exec(config.command, config.args, { cwd });
+  let args = config.args;
+
+  if (config.selective) {
+    if (changedFiles.length === 0) {
+      log.detail(`No changed files — skipping ${name}`);
+      return { passed: true, output: "No changed files to check." };
+    }
+
+    log.detail(`Scoping ${name} to ${changedFiles.length} changed file(s)`);
+    args = buildScopedArgs(config.command, config.args, changedFiles);
+  }
+
+  log.detail(`Running ${name}: ${config.command} ${args.join(" ")}`);
+  const result = await exec(config.command, args, { cwd });
   const output = (result.stdout + result.stderr).trim();
   const passed = result.exitCode === 0;
 
@@ -58,33 +71,14 @@ export async function validate(
 ): Promise<ValidationResult> {
   log.step("Running validation checks");
 
-  // Collect changed files to scope formatter & linter
+  // Collect changed files for selective checks
   const changed = await getChangedFiles(config.base_branch, cwd);
 
-  const scopeCheck = (
-    name: string,
-    check: Config["validation"]["formatter"]
-  ) => {
-    if (!check || !check.enabled) return runCheck(name, check, cwd);
-
-    if (changed.length === 0) {
-      log.detail(`No changed files — skipping ${name}`);
-      return Promise.resolve({ passed: true, output: "No changed files to check." });
-    }
-
-    log.detail(`Scoping ${name} to ${changed.length} changed file(s)`);
-    const scopedConfig = {
-      ...check,
-      args: buildScopedArgs(check.command, check.args, changed),
-    };
-    return runCheck(name, scopedConfig, cwd);
-  };
-
   const [formatter, linter, typecheck, tests] = await Promise.all([
-    scopeCheck("formatter", config.validation.formatter),
-    scopeCheck("linter", config.validation.linter),
-    runCheck("typecheck", config.validation.typecheck, cwd),
-    runCheck("tests", config.validation.tests, cwd),
+    runCheck("formatter", config.validation.formatter, cwd, changed),
+    runCheck("linter", config.validation.linter, cwd, changed),
+    runCheck("typecheck", config.validation.typecheck, cwd, changed),
+    runCheck("tests", config.validation.tests, cwd, changed),
   ]);
 
   const results = [formatter, linter, typecheck, tests].filter(Boolean);

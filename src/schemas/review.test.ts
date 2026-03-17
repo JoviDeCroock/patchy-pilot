@@ -8,12 +8,9 @@ import {
 } from "./review.js";
 
 describe("SeveritySchema", () => {
-  it.each(["critical", "high", "medium", "low", "info"] as const)(
-    "accepts '%s'",
-    (severity) => {
-      expect(SeveritySchema.parse(severity)).toBe(severity);
-    }
-  );
+  it.each(["critical", "high", "medium", "low", "info"] as const)("accepts '%s'", (severity) => {
+    expect(SeveritySchema.parse(severity)).toBe(severity);
+  });
 
   it("rejects invalid severity", () => {
     expect(() => SeveritySchema.parse("urgent")).toThrow();
@@ -21,14 +18,12 @@ describe("SeveritySchema", () => {
 });
 
 describe("MergeRecommendation", () => {
-  it.each([
-    "safe_to_merge",
-    "merge_with_minor_fixes",
-    "needs_changes",
-    "do_not_merge",
-  ] as const)("accepts '%s'", (rec) => {
-    expect(MergeRecommendation.parse(rec)).toBe(rec);
-  });
+  it.each(["safe_to_merge", "merge_with_minor_fixes", "needs_changes", "do_not_merge"] as const)(
+    "accepts '%s'",
+    (rec) => {
+      expect(MergeRecommendation.parse(rec)).toBe(rec);
+    },
+  );
 
   it("rejects invalid recommendation", () => {
     expect(() => MergeRecommendation.parse("maybe")).toThrow();
@@ -85,15 +80,11 @@ describe("ReviewResultSchema", () => {
   });
 
   it("rejects confidence below 0", () => {
-    expect(() =>
-      ReviewResultSchema.parse({ ...validReview, confidence: -0.1 })
-    ).toThrow();
+    expect(() => ReviewResultSchema.parse({ ...validReview, confidence: -0.1 })).toThrow();
   });
 
   it("rejects confidence above 1", () => {
-    expect(() =>
-      ReviewResultSchema.parse({ ...validReview, confidence: 1.1 })
-    ).toThrow();
+    expect(() => ReviewResultSchema.parse({ ...validReview, confidence: 1.1 })).toThrow();
   });
 
   it("accepts confidence at boundaries", () => {
@@ -103,9 +94,7 @@ describe("ReviewResultSchema", () => {
 
   it("rejects missing required fields", () => {
     expect(() => ReviewResultSchema.parse({})).toThrow();
-    expect(() =>
-      ReviewResultSchema.parse({ ...validReview, short_summary: undefined })
-    ).toThrow();
+    expect(() => ReviewResultSchema.parse({ ...validReview, short_summary: undefined })).toThrow();
   });
 });
 

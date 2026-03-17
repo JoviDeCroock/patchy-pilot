@@ -31,7 +31,7 @@ describe("reviewPrompt", () => {
     const prompt = reviewPrompt(
       makeArtifacts({
         file_contents: { "src/main.ts": "console.log('hi')" },
-      })
+      }),
     );
     expect(prompt).toContain('<file path="src/main.ts">');
     expect(prompt).toContain("console.log('hi')");
@@ -44,7 +44,7 @@ describe("reviewPrompt", () => {
           linter: { passed: false, output: "2 errors found" },
           all_passed: false,
         },
-      })
+      }),
     );
     expect(prompt).toContain("Linter: FAIL");
     expect(prompt).toContain("2 errors found");
@@ -68,9 +68,7 @@ describe("reviewPrompt", () => {
   });
 
   it("includes builder summary when provided", () => {
-    const prompt = reviewPrompt(
-      makeArtifacts({ builder_summary: "I added a button component" })
-    );
+    const prompt = reviewPrompt(makeArtifacts({ builder_summary: "I added a button component" }));
     expect(prompt).toContain("<builder-summary>");
     expect(prompt).toContain("I added a button component");
     expect(prompt).toContain("Do not trust this summary");
@@ -103,7 +101,7 @@ describe("reviewPrompt", () => {
           ci_files: [],
           inferred_validation: {},
         },
-      })
+      }),
     );
     expect(prompt).toContain("pnpm");
     expect(prompt).toContain("vitest run");

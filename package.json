@@ -26,6 +26,7 @@
     "start": "node dist/cli.js",
     "typecheck": "tsc --noEmit",
     "lint": "oxlint",
+    "format": "oxfmt src",
     "format:check": "oxfmt --check src",
     "test": "vitest run"
   },

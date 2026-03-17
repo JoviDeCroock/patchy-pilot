@@ -19,21 +19,15 @@ describe("LearnedSkillSchema", () => {
   });
 
   it("requires at least one instruction", () => {
-    expect(() =>
-      LearnedSkillSchema.parse({ ...validSkill, instructions: [] })
-    ).toThrow();
+    expect(() => LearnedSkillSchema.parse({ ...validSkill, instructions: [] })).toThrow();
   });
 
   it("requires at least one source run", () => {
-    expect(() =>
-      LearnedSkillSchema.parse({ ...validSkill, source_runs: [] })
-    ).toThrow();
+    expect(() => LearnedSkillSchema.parse({ ...validSkill, source_runs: [] })).toThrow();
   });
 
   it("requires at least one evidence item", () => {
-    expect(() =>
-      LearnedSkillSchema.parse({ ...validSkill, evidence: [] })
-    ).toThrow();
+    expect(() => LearnedSkillSchema.parse({ ...validSkill, evidence: [] })).toThrow();
   });
 });
 

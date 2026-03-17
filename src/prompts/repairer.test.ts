@@ -33,7 +33,11 @@ describe("repairPrompt", () => {
   it("includes critical issues with [CRITICAL] prefix", () => {
     const review = makeReview({
       critical_issues: [
-        { description: "SQL injection", severity: "critical", suggestion: "Use parameterized queries" },
+        {
+          description: "SQL injection",
+          severity: "critical",
+          suggestion: "Use parameterized queries",
+        },
       ],
     });
     const prompt = repairPrompt("spec", review);

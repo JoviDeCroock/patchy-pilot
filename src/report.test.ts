@@ -113,7 +113,12 @@ describe("generateReport", () => {
     const result = makeRunResult({
       review: {
         critical_issues: [
-          { description: "SQL injection vulnerability", severity: "critical", file: "db.ts", line: 42 },
+          {
+            description: "SQL injection vulnerability",
+            severity: "critical",
+            file: "db.ts",
+            line: 42,
+          },
         ],
         likely_bugs: [],
         missing_tests: [],

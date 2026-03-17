@@ -71,18 +71,12 @@ describe("ConfigSchema", () => {
   });
 
   it("rejects repairer max_iterations outside 1-10", () => {
-    expect(() =>
-      ConfigSchema.parse({ repairer: { max_iterations: 0 } })
-    ).toThrow();
-    expect(() =>
-      ConfigSchema.parse({ repairer: { max_iterations: 11 } })
-    ).toThrow();
+    expect(() => ConfigSchema.parse({ repairer: { max_iterations: 0 } })).toThrow();
+    expect(() => ConfigSchema.parse({ repairer: { max_iterations: 11 } })).toThrow();
   });
 
   it("rejects invalid block_on categories", () => {
-    expect(() =>
-      ConfigSchema.parse({ thresholds: { block_on: ["invalid_category"] } })
-    ).toThrow();
+    expect(() => ConfigSchema.parse({ thresholds: { block_on: ["invalid_category"] } })).toThrow();
   });
 
   it("accepts valid block_on categories", () => {

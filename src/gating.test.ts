@@ -53,7 +53,9 @@ describe("evaluateGating", () => {
     // 1 critical <= max_critical of 1 => pass (no block_on triggered for critical_issues by default... wait, default block_on includes critical_issues)
     // Actually let's check: default block_on is ["critical_issues"], so any critical_issues will trigger block
     expect(result.passed).toBe(false);
-    expect(result.reasons.some((r) => r.includes('Blocking category "critical_issues"'))).toBe(true);
+    expect(result.reasons.some((r) => r.includes('Blocking category "critical_issues"'))).toBe(
+      true,
+    );
   });
 
   it("fails when high-severity issues across categories exceed max_high", () => {
@@ -62,7 +64,10 @@ describe("evaluateGating", () => {
       likely_bugs: [{ description: "B", severity: "high" }],
       spec_mismatches: [{ description: "C", severity: "high" }],
     });
-    const result = evaluateGating(review, makeConfig({ max_high: 2, max_critical: 999, block_on: [] }));
+    const result = evaluateGating(
+      review,
+      makeConfig({ max_high: 2, max_critical: 999, block_on: [] }),
+    );
     expect(result.passed).toBe(false);
     expect(result.reasons.some((r) => r.includes("3 high-severity issues"))).toBe(true);
   });
@@ -97,20 +102,14 @@ describe("evaluateGating", () => {
     const review = makeReview({
       likely_bugs: [{ description: "Bug", severity: "low" }],
     });
-    const result = evaluateGating(
-      review,
-      makeConfig({ block_on: ["likely_bugs"] })
-    );
+    const result = evaluateGating(review, makeConfig({ block_on: ["likely_bugs"] }));
     expect(result.passed).toBe(false);
     expect(result.reasons[0]).toContain('Blocking category "likely_bugs"');
   });
 
   it("does not fail on block_on categories with zero issues", () => {
     const review = makeReview({ likely_bugs: [] });
-    const result = evaluateGating(
-      review,
-      makeConfig({ block_on: ["likely_bugs"] })
-    );
+    const result = evaluateGating(review, makeConfig({ block_on: ["likely_bugs"] }));
     expect(result.passed).toBe(true);
   });
 
@@ -122,10 +121,7 @@ describe("evaluateGating", () => {
       ],
       confidence: 0.3,
     });
-    const result = evaluateGating(
-      review,
-      makeConfig({ max_critical: 0, min_confidence: 0.5 })
-    );
+    const result = evaluateGating(review, makeConfig({ max_critical: 0, min_confidence: 0.5 }));
     expect(result.passed).toBe(false);
     expect(result.reasons.length).toBeGreaterThanOrEqual(2);
   });

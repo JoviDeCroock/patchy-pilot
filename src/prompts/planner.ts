@@ -26,7 +26,7 @@ Keep the plan concise and actionable — under 2000 words. Focus on *what* to do
 export function plannerFeedbackPrompt(
   spec: string,
   previousPlan: string,
-  feedback: string
+  feedback: string,
 ): string {
   return `You are a software architect revising an implementation plan based on user feedback.
 

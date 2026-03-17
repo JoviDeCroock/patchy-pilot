@@ -8,7 +8,7 @@ async function runCheck(
   name: string,
   config: { command: string; args: string[]; enabled: boolean; selective: boolean } | undefined,
   cwd: string,
-  changedFiles: string[]
+  changedFiles: string[],
 ): Promise<{ passed: boolean; output: string } | undefined> {
   if (!config || !config.enabled) return undefined;
 
@@ -48,7 +48,7 @@ const PACKAGE_MANAGERS = new Set(["npm", "pnpm", "yarn", "bun", "npx"]);
 export function buildScopedArgs(
   command: string,
   originalArgs: string[],
-  files: string[]
+  files: string[],
 ): string[] {
   // Strip a trailing bare directory target (`.` or `./`) so the tool
   // doesn't also scan the whole tree.
@@ -65,10 +65,7 @@ export function buildScopedArgs(
   return [...args, ...files];
 }
 
-export async function validate(
-  config: Config,
-  cwd: string
-): Promise<ValidationResult> {
+export async function validate(config: Config, cwd: string): Promise<ValidationResult> {
   log.step("Running validation checks");
 
   // Collect changed files for selective checks

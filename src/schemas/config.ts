@@ -39,25 +39,27 @@ export const SafeAgentConfigSchema = BaseAgentConfigSchema.extend({
 
 export const ConfigSchema = z.object({
   planner: BaseAgentConfigSchema.default({
-    provider: 'claude-code',
+    provider: "claude-code",
   }),
   builder: BuilderAgentConfigSchema.default({
-    provider: 'claude-code',
+    provider: "claude-code",
   }),
   reviewer: SafeAgentConfigSchema.default({
-    provider: 'claude-code',
+    provider: "claude-code",
   }),
   repairer: SafeAgentConfigSchema.extend({
     enabled: z.boolean().default(false),
     max_iterations: z.number().min(1).max(10).default(3),
   }).default({}),
   providers: z.record(z.string(), ProviderConfigSchema).default({}),
-  validation: z.object({
-    formatter: ValidationCommandSchema.optional(),
-    linter: ValidationCommandSchema.optional(),
-    typecheck: ValidationCommandSchema.optional(),
-    tests: ValidationCommandSchema.optional(),
-  }).default({}),
+  validation: z
+    .object({
+      formatter: ValidationCommandSchema.optional(),
+      linter: ValidationCommandSchema.optional(),
+      typecheck: ValidationCommandSchema.optional(),
+      tests: ValidationCommandSchema.optional(),
+    })
+    .default({}),
   thresholds: ThresholdConfigSchema.default({}),
   review_rules: z.array(z.string()).default([]),
   artifacts_dir: z.string().default(".patchy-pilot/runs"),

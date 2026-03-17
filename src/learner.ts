@@ -49,13 +49,10 @@ export async function runLearn(opts: LearnOptions): Promise<LearnResult> {
   log.step(`Analyzing ${runDirs.length} runs for reusable skills`);
   const runs = await Promise.all(runDirs.map((runId) => loadRunSummary(runsDir, runId)));
 
-  const provider = createProvider(
-    opts.provider ?? opts.config.reviewer.provider,
-    {
-      model: opts.model ?? opts.config.reviewer.model,
-      role: "learner",
-    }
-  );
+  const provider = createProvider(opts.provider ?? opts.config.reviewer.provider, {
+    model: opts.model ?? opts.config.reviewer.model,
+    role: "learner",
+  });
 
   const prompt = learnPrompt(runs);
   const response = await provider.run(prompt, { cwd: opts.cwd, timeout: 600_000 });
@@ -65,7 +62,11 @@ export async function runLearn(opts: LearnOptions): Promise<LearnResult> {
   }
 
   const learnOutput = LearnOutputSchema.parse(parsed);
-  await writeSkills(outputDir, learnOutput, runs.map((run) => run.run_id));
+  await writeSkills(
+    outputDir,
+    learnOutput,
+    runs.map((run) => run.run_id),
+  );
 
   if (learnOutput.skills.length === 0) {
     log.info("Learner found no evidence-backed skills to generate");
@@ -149,7 +150,8 @@ function summarizeValidation(validation?: ValidationResult): Record<string, stri
       continue;
     }
 
-    summary[name] = `${result.passed ? "PASS" : "FAIL"}${result.output ? ` - ${clip(cleanWhitespace(result.output), 280) ?? ""}` : ""}`;
+    summary[name] =
+      `${result.passed ? "PASS" : "FAIL"}${result.output ? ` - ${clip(cleanWhitespace(result.output), 280) ?? ""}` : ""}`;
   }
 
   return summary;
@@ -175,12 +177,18 @@ function summarizeReview(review?: ReviewResult): LearnRunSummary["review"] | und
 
 function summarizeIssues(issues: ReviewResult["critical_issues"]): string[] {
   return issues.slice(0, 5).map((issue) => {
-    const location = issue.file ? `${issue.file}${issue.line ? `:${issue.line}` : ""}` : "unknown-location";
+    const location = issue.file
+      ? `${issue.file}${issue.line ? `:${issue.line}` : ""}`
+      : "unknown-location";
     return `[${issue.severity}] ${location} - ${clip(issue.description, 220) ?? issue.description}`;
   });
 }
 
-async function writeSkills(outputDir: string, learnOutput: LearnOutput, analyzedRuns: string[]): Promise<void> {
+async function writeSkills(
+  outputDir: string,
+  learnOutput: LearnOutput,
+  analyzedRuns: string[],
+): Promise<void> {
   await mkdir(outputDir, { recursive: true });
 
   const manifest = {
@@ -199,7 +207,7 @@ async function writeSkills(outputDir: string, learnOutput: LearnOutput, analyzed
     writeFile(join(outputDir, "manifest.json"), JSON.stringify(manifest, null, 2), "utf-8"),
     writeFile(join(outputDir, "README.md"), renderIndex(learnOutput), "utf-8"),
     ...learnOutput.skills.map((skill) =>
-      writeFile(join(outputDir, `${normalizeSlug(skill.slug)}.md`), renderSkill(skill), "utf-8")
+      writeFile(join(outputDir, `${normalizeSlug(skill.slug)}.md`), renderSkill(skill), "utf-8"),
     ),
   ]);
 }

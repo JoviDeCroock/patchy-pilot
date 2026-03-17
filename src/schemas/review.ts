@@ -49,34 +49,36 @@ export const ArtifactsSchema = z.object({
   file_contents: z.record(z.string(), z.string()),
   validation: ValidationResultSchema,
   builder_summary: z.string().optional(),
-  project_context: z.object({
-    package_manager: z.string().optional(),
-    package_scripts: z.record(z.string(), z.string()),
-    ci_files: z.array(
-      z.object({
-        path: z.string(),
-        excerpt: z.string(),
-      })
-    ),
-    inferred_validation: z.object({
-      formatter: ValidationCommandSchema.extend({
-        source: z.enum(["package.json", "ci"]),
-        detail: z.string(),
-      }).optional(),
-      linter: ValidationCommandSchema.extend({
-        source: z.enum(["package.json", "ci"]),
-        detail: z.string(),
-      }).optional(),
-      typecheck: ValidationCommandSchema.extend({
-        source: z.enum(["package.json", "ci"]),
-        detail: z.string(),
-      }).optional(),
-      tests: ValidationCommandSchema.extend({
-        source: z.enum(["package.json", "ci"]),
-        detail: z.string(),
-      }).optional(),
-    }),
-  }).optional(),
+  project_context: z
+    .object({
+      package_manager: z.string().optional(),
+      package_scripts: z.record(z.string(), z.string()),
+      ci_files: z.array(
+        z.object({
+          path: z.string(),
+          excerpt: z.string(),
+        }),
+      ),
+      inferred_validation: z.object({
+        formatter: ValidationCommandSchema.extend({
+          source: z.enum(["package.json", "ci"]),
+          detail: z.string(),
+        }).optional(),
+        linter: ValidationCommandSchema.extend({
+          source: z.enum(["package.json", "ci"]),
+          detail: z.string(),
+        }).optional(),
+        typecheck: ValidationCommandSchema.extend({
+          source: z.enum(["package.json", "ci"]),
+          detail: z.string(),
+        }).optional(),
+        tests: ValidationCommandSchema.extend({
+          source: z.enum(["package.json", "ci"]),
+          detail: z.string(),
+        }).optional(),
+      }),
+    })
+    .optional(),
 });
 export type Artifacts = z.infer<typeof ArtifactsSchema>;
 

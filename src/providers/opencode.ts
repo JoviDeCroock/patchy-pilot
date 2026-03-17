@@ -7,19 +7,16 @@ export class OpenCodeProvider implements AIProvider {
 
   constructor(private options: ProviderOptions = {}) {}
 
-  async run(
-    prompt: string,
-    options?: ProviderRunOptions
-  ): Promise<ProviderResponse> {
+  async run(prompt: string, options?: ProviderRunOptions): Promise<ProviderResponse> {
     if (this.options.role === "reviewer" || this.options.role === "learner") {
       throw new Error(
-        "OpenCode CLI does not expose verified read-only controls for reviewer or learner roles"
+        "OpenCode CLI does not expose verified read-only controls for reviewer or learner roles",
       );
     }
 
     if (this.options.dangerouslySkipPermissions) {
       throw new Error(
-        "OpenCode CLI does not expose a verified dangerous-permissions flag via `opencode run --help`"
+        "OpenCode CLI does not expose a verified dangerous-permissions flag via `opencode run --help`",
       );
     }
 

@@ -19,7 +19,7 @@ export function exec(
     stdin?: string;
     timeout?: number;
     onData?: (chunk: string) => void;
-  }
+  },
 ): Promise<ExecResult> {
   return new Promise((resolve, reject) => {
     const proc = spawn(command, args, {

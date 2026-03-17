@@ -11,16 +11,13 @@ export class CodexProvider implements AIProvider {
     if (options.dangerouslySkipPermissions) {
       log.warn(
         `[codex] dangerouslySkipPermissions is ENABLED. ` +
-        `Both approval gates AND sandbox will be bypassed. ` +
-        `The AI agent can execute arbitrary commands with full filesystem access.`
+          `Both approval gates AND sandbox will be bypassed. ` +
+          `The AI agent can execute arbitrary commands with full filesystem access.`,
       );
     }
   }
 
-  async run(
-    prompt: string,
-    options?: ProviderRunOptions
-  ): Promise<ProviderResponse> {
+  async run(prompt: string, options?: ProviderRunOptions): Promise<ProviderResponse> {
     const streaming = !!options?.onData;
     const args = ["exec"];
 

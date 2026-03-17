@@ -177,35 +177,35 @@ If you want to override providers, thresholds, or validation commands, create a 
 
 ### Config fields
 
-| Field | Description | Default |
-|---|---|---|
-| `planner.provider` | AI tool for plan mode | `claude-code` |
-| `planner.model` | Model override for planner | (provider default) |
-| `builder.provider` | AI tool for building | `claude-code` |
-| `builder.model` | Model override for builder | (provider default) |
-| `builder.dangerouslySkipPermissions` | Skip provider permission prompts/sandbox when supported; use only in an external sandbox | `false` |
-| `reviewer.provider` | AI tool for reviewing | `claude-code` |
-| `reviewer.model` | Model override for reviewer | (provider default) |
-| `repairer.provider` | AI tool for repair pass | `claude-code` |
-| `repairer.enabled` | Auto-repair when review fails gating | `false` |
-| `repairer.max_iterations` | Max repair/review loops before giving up | `3` |
-| `validation.*` | Deterministic check commands | inferred from `package.json` when possible |
-| `thresholds.max_critical` | Max critical issues before gating fails | `0` |
-| `thresholds.max_high` | Max high-severity issues before gating fails | `2` |
-| `thresholds.min_confidence` | Min reviewer confidence score | `0.6` |
-| `thresholds.block_on` | Issue categories that block on any count | `["critical_issues"]` |
-| `review_rules` | Extra rules included in the reviewer prompt | `[]` |
-| `base_branch` | Branch to diff against | `main` |
-| `artifacts_dir` | Where run artifacts are saved | `.patchy-pilot/runs` |
+| Field                                | Description                                                                              | Default                                    |
+| ------------------------------------ | ---------------------------------------------------------------------------------------- | ------------------------------------------ |
+| `planner.provider`                   | AI tool for plan mode                                                                    | `claude-code`                              |
+| `planner.model`                      | Model override for planner                                                               | (provider default)                         |
+| `builder.provider`                   | AI tool for building                                                                     | `claude-code`                              |
+| `builder.model`                      | Model override for builder                                                               | (provider default)                         |
+| `builder.dangerouslySkipPermissions` | Skip provider permission prompts/sandbox when supported; use only in an external sandbox | `false`                                    |
+| `reviewer.provider`                  | AI tool for reviewing                                                                    | `claude-code`                              |
+| `reviewer.model`                     | Model override for reviewer                                                              | (provider default)                         |
+| `repairer.provider`                  | AI tool for repair pass                                                                  | `claude-code`                              |
+| `repairer.enabled`                   | Auto-repair when review fails gating                                                     | `false`                                    |
+| `repairer.max_iterations`            | Max repair/review loops before giving up                                                 | `3`                                        |
+| `validation.*`                       | Deterministic check commands                                                             | inferred from `package.json` when possible |
+| `thresholds.max_critical`            | Max critical issues before gating fails                                                  | `0`                                        |
+| `thresholds.max_high`                | Max high-severity issues before gating fails                                             | `2`                                        |
+| `thresholds.min_confidence`          | Min reviewer confidence score                                                            | `0.6`                                      |
+| `thresholds.block_on`                | Issue categories that block on any count                                                 | `["critical_issues"]`                      |
+| `review_rules`                       | Extra rules included in the reviewer prompt                                              | `[]`                                       |
+| `base_branch`                        | Branch to diff against                                                                   | `main`                                     |
+| `artifacts_dir`                      | Where run artifacts are saved                                                            | `.patchy-pilot/runs`                       |
 
 ## Supported providers
 
-| Provider | Command | Notes |
-|---|---|---|
-| `claude-code` | `claude` | Claude Code CLI; reviewer/learner run with tools disabled |
-| `codex` | `codex exec` | OpenAI Codex CLI; reviewer/learner run in read-only sandbox |
-| `opencode` | `opencode run` | OpenCode CLI; builder/repairer only because read-only review mode is not verified |
-| `pi` | `pi -p` | Pi coding agent; builder/repairer only because read-only review mode is not verified |
+| Provider      | Command        | Notes                                                                                |
+| ------------- | -------------- | ------------------------------------------------------------------------------------ |
+| `claude-code` | `claude`       | Claude Code CLI; reviewer/learner run with tools disabled                            |
+| `codex`       | `codex exec`   | OpenAI Codex CLI; reviewer/learner run in read-only sandbox                          |
+| `opencode`    | `opencode run` | OpenCode CLI; builder/repairer only because read-only review mode is not verified    |
+| `pi`          | `pi -p`        | Pi coding agent; builder/repairer only because read-only review mode is not verified |
 
 Mix and match — use one provider for building and another for reviewing.
 
@@ -244,7 +244,9 @@ Learned skills are written separately to:
 
 ```json
 {
-  "critical_issues": [{ "description": "...", "severity": "critical", "file": "...", "suggestion": "..." }],
+  "critical_issues": [
+    { "description": "...", "severity": "critical", "file": "...", "suggestion": "..." }
+  ],
   "likely_bugs": [],
   "missing_tests": [],
   "spec_mismatches": [],
@@ -260,11 +262,11 @@ Learned skills are written separately to:
 
 ## Exit codes
 
-| Code | Meaning |
-|---|---|
-| `0` | Gating passed (or repair was applied) |
-| `1` | Gating failed — review found blocking issues |
-| `2` | Runtime error (config, provider failure, etc.) |
+| Code | Meaning                                        |
+| ---- | ---------------------------------------------- |
+| `0`  | Gating passed (or repair was applied)          |
+| `1`  | Gating failed — review found blocking issues   |
+| `2`  | Runtime error (config, provider failure, etc.) |
 
 ## Future improvements
 

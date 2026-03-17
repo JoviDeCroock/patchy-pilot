@@ -2,7 +2,13 @@
   "name": "patchy-pilot",
   "version": "0.1.0",
   "description": "AI workflow harness: automatic review after AI coding sessions",
-  "type": "module",
+  "keywords": [
+    "ai",
+    "cli",
+    "code-review",
+    "workflow"
+  ],
+  "license": "MIT",
   "bin": {
     "ppilot": "./dist/cli.js"
   },
@@ -13,26 +19,24 @@
     "package.json",
     "LICENSE"
   ],
+  "type": "module",
   "scripts": {
     "build": "tsc",
     "dev": "tsx src/cli.ts",
     "start": "node dist/cli.js",
     "typecheck": "tsc --noEmit",
+    "lint": "oxlint",
+    "format:check": "oxfmt --check src",
     "test": "vitest run"
   },
-  "keywords": [
-    "ai",
-    "code-review",
-    "workflow",
-    "cli"
-  ],
-  "license": "MIT",
   "dependencies": {
     "commander": "^13.1.0",
     "zod": "^3.24.0"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
+    "oxfmt": "^0.41.0",
+    "oxlint": "^1.56.0",
     "tsx": "^4.19.0",
     "typescript": "^5.7.0",
     "vitest": "^3.0.0"

@@ -80,9 +80,11 @@ Be honest. If the implementation is good, say so. If it's bad, say so clearly.`;
 
 function formatValidation(v: Artifacts["validation"]): string {
   const lines: string[] = [];
-  if (v.formatter) lines.push(`Formatter: ${v.formatter.passed ? "PASS" : "FAIL"}\n${v.formatter.output}`);
+  if (v.formatter)
+    lines.push(`Formatter: ${v.formatter.passed ? "PASS" : "FAIL"}\n${v.formatter.output}`);
   if (v.linter) lines.push(`Linter: ${v.linter.passed ? "PASS" : "FAIL"}\n${v.linter.output}`);
-  if (v.typecheck) lines.push(`Typecheck: ${v.typecheck.passed ? "PASS" : "FAIL"}\n${v.typecheck.output}`);
+  if (v.typecheck)
+    lines.push(`Typecheck: ${v.typecheck.passed ? "PASS" : "FAIL"}\n${v.typecheck.output}`);
   if (v.tests) lines.push(`Tests: ${v.tests.passed ? "PASS" : "FAIL"}\n${v.tests.output}`);
   if (lines.length === 0) return "No validation steps configured.";
   return lines.join("\n\n");
@@ -94,7 +96,8 @@ function formatProjectContext(artifacts: Artifacts): string {
   }
 
   const sections: string[] = [];
-  const { package_manager, package_scripts, ci_files, inferred_validation } = artifacts.project_context;
+  const { package_manager, package_scripts, ci_files, inferred_validation } =
+    artifacts.project_context;
 
   if (package_manager || Object.keys(package_scripts).length > 0) {
     const packageLines: string[] = [];
@@ -105,7 +108,7 @@ function formatProjectContext(artifacts: Artifacts): string {
       packageLines.push(
         `Package scripts:\n${Object.entries(package_scripts)
           .map(([name, command]) => `- ${name}: ${command}`)
-          .join("\n")}`
+          .join("\n")}`,
       );
     }
     sections.push(`<project-tooling>\n${packageLines.join("\n\n")}\n</project-tooling>`);
@@ -122,7 +125,7 @@ function formatProjectContext(artifacts: Artifacts): string {
     .filter((line): line is string => Boolean(line));
   if (inferredLines.length > 0) {
     sections.push(
-      `<inferred-validation>\nThese commands were inferred from package.json or CI and may indicate intended checks:\n${inferredLines.join("\n")}\n</inferred-validation>`
+      `<inferred-validation>\nThese commands were inferred from package.json or CI and may indicate intended checks:\n${inferredLines.join("\n")}\n</inferred-validation>`,
     );
   }
 
@@ -130,7 +133,7 @@ function formatProjectContext(artifacts: Artifacts): string {
     sections.push(
       `<ci-configuration>\n${ci_files
         .map((file) => `<ci-file path="${file.path}">\n${file.excerpt}\n</ci-file>`)
-        .join("\n\n")}\n</ci-configuration>`
+        .join("\n\n")}\n</ci-configuration>`,
     );
   }
 

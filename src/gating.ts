@@ -12,9 +12,7 @@ export function evaluateGating(review: ReviewResult, config: Config): GatingResu
   const t = config.thresholds;
 
   if (review.critical_issues.length > t.max_critical) {
-    reasons.push(
-      `${review.critical_issues.length} critical issues (max: ${t.max_critical})`
-    );
+    reasons.push(`${review.critical_issues.length} critical issues (max: ${t.max_critical})`);
   }
 
   const highCount = [
@@ -28,9 +26,7 @@ export function evaluateGating(review: ReviewResult, config: Config): GatingResu
   }
 
   if (review.confidence < t.min_confidence) {
-    reasons.push(
-      `Confidence ${review.confidence} below threshold ${t.min_confidence}`
-    );
+    reasons.push(`Confidence ${review.confidence} below threshold ${t.min_confidence}`);
   }
 
   for (const category of t.block_on) {

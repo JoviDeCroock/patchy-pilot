@@ -2,6 +2,7 @@
 
 import { Command } from "commander";
 import { readFile, readdir, writeFile } from "node:fs/promises";
+import { readFileSync } from "node:fs";
 import { resolve, join } from "node:path";
 import { loadConfig } from "./config.js";
 import { parseGitHubIssue, fetchGitHubIssue } from "./github-issue.js";
@@ -12,12 +13,16 @@ import { createProvider } from "./providers/index.js";
 import { log } from "./utils/logger.js";
 import { loadReportData, generateReport } from "./report.js";
 
+const { version } = JSON.parse(
+  readFileSync(new URL("../package.json", import.meta.url), "utf-8"),
+) as { version: string };
+
 const program = new Command();
 
 program
   .name("ppilot")
   .description("AI workflow harness: automatic review after AI coding sessions")
-  .version("0.2.0");
+  .version(version);
 
 program
   .command("feature")

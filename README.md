@@ -55,6 +55,10 @@ ppilot feature @specs/retry-mechanism.md
 # Skip the build step (review existing uncommitted changes)
 ppilot feature --no-build "Add retry mechanism"
 
+# From a GitHub issue (full URL or shorthand)
+ppilot feature https://github.com/owner/repo/issues/42
+ppilot feature owner/repo#42
+
 # Run a planner step first — review and approve a plan before building
 ppilot feature --plan "Add retry mechanism"
 
@@ -63,6 +67,9 @@ ppilot feature --repair "Add retry mechanism"
 
 # Suppress real-time streamed output (streaming is on by default)
 ppilot feature --silent "Add retry mechanism"
+
+# Skip the auto-generated HTML report (report is created and opened by default)
+ppilot feature --no-report "Add retry mechanism"
 
 # Override providers
 ppilot feature --builder claude-code --reviewer claude-code "Add retry mechanism"
@@ -91,6 +98,13 @@ Review-only: run validation and AI review on existing changes without building f
 ppilot review "The changes should implement a retry mechanism with exponential backoff"
 ppilot review @specs/retry-mechanism.md
 ppilot review --silent "Add retry mechanism"
+
+# Skip the auto-generated HTML report
+ppilot review --no-report "Add retry mechanism"
+
+# From a GitHub issue
+ppilot review https://github.com/owner/repo/issues/42
+ppilot review owner/repo#42
 ```
 
 ### `ppilot repair <review-file> <spec>`
@@ -100,6 +114,9 @@ Run a repair pass using findings from a previous review.
 ```bash
 ppilot repair .patchy-pilot/runs/2026-03-16T14-30-00/review.json @specs/retry-mechanism.md
 ppilot repair --silent .patchy-pilot/runs/2026-03-16T14-30-00/review.json @specs/retry-mechanism.md
+
+# Spec from a GitHub issue
+ppilot repair .patchy-pilot/runs/2026-03-16T14-30-00/review.json owner/repo#42
 ```
 
 ### `ppilot learn`
@@ -135,6 +152,33 @@ ppilot report -o review-report.html
 ```
 
 The report includes validation results, all review findings grouped by category and severity, gating status, confidence score, and merge recommendation. The output is a single HTML file with no external dependencies.
+
+## Spec sources
+
+The `<spec>` argument accepts three formats:
+
+| Format | Example | Description |
+| --- | --- | --- |
+| Inline text | `"Add retry with backoff"` | Used as-is |
+| File reference | `@specs/retry.md` | Reads the file contents |
+| GitHub issue URL | `https://github.com/owner/repo/issues/42` | Fetches the issue title and body via `gh` |
+| GitHub issue shorthand | `owner/repo#42` | Same as above, shorter syntax |
+
+### GitHub issues
+
+When a spec looks like a GitHub issue reference, ppilot fetches the issue title and body using the GitHub CLI (`gh`) and uses the result as the specification for the run. This means you can point ppilot directly at a bug report or feature request and let it build, review, or repair from that.
+
+**Requirements:** The [GitHub CLI](https://cli.github.com/) must be installed and authenticated (`gh auth login`). ppilot will exit with code 2 if the issue cannot be fetched.
+
+```bash
+# These are equivalent
+ppilot feature https://github.com/acme/api/issues/99
+ppilot feature acme/api#99
+
+# Combine with any other flags
+ppilot feature --plan --repair acme/api#99
+ppilot review acme/api#99
+```
 
 ## Configuration
 
@@ -273,4 +317,3 @@ Learned skills are written separately to:
 - Claude Code hooks integration (trigger review on `PostToolUse` or session end)
 - Review history and trend tracking
 - Multi-file focus analysis (changed files + nearby impacted files)
-- Create and open the report by default after a run

@@ -11,6 +11,7 @@ import { runFeature, runReviewOnly } from "./runner.js";
 import { runRepair } from "./repairer.js";
 import { createProvider } from "./providers/index.js";
 import { log } from "./utils/logger.js";
+import { prepareWorktreeSession } from "./utils/worktree.js";
 import { loadReportData, generateReport } from "./report.js";
 
 const { version } = JSON.parse(
@@ -32,6 +33,7 @@ program
   .option("--no-review", "Skip the review step")
   .option("--repair", "Enable repair pass if review finds issues")
   .option("--plan", "Run a planner agent before building")
+  .option("--worktree [name]", "Run the feature workflow in a new git worktree")
   .option("--silent", "Suppress real-time streamed output from provider steps")
   .option("--cwd <dir>", "Working directory", process.cwd())
   .option("--builder <provider>", "Override builder provider")
@@ -42,7 +44,18 @@ program
   .option("--planner-model <model>", "Override planner model")
   .action(async (specArg: string, opts) => {
     try {
-      const config = await loadConfig(opts.cwd);
+      const requestedCwd = resolve(opts.cwd);
+      const worktree = await prepareWorktreeSession(requestedCwd, opts.worktree);
+      const sessionCwd = worktree?.cwd ?? requestedCwd;
+
+      if (worktree) {
+        log.info(`Created worktree ${worktree.name} at ${worktree.root}`);
+        if (sessionCwd !== worktree.root) {
+          log.detail(`Running feature workflow from ${sessionCwd}`);
+        }
+      }
+
+      const config = await loadConfig(sessionCwd);
 
       // Apply CLI overrides
       if (opts.builder) config.builder.provider = opts.builder;
@@ -52,11 +65,11 @@ program
       if (opts.reviewerModel) config.reviewer.model = opts.reviewerModel;
       if (opts.plannerModel) config.planner.model = opts.plannerModel;
 
-      const spec = await resolveSpec(specArg, opts.cwd);
+      const spec = await resolveSpec(specArg, sessionCwd);
       const result = await runFeature({
         spec,
         config,
-        cwd: resolve(opts.cwd),
+        cwd: sessionCwd,
         skipBuild: !opts.build,
         skipReview: !opts.review,
         repair: opts.repair,

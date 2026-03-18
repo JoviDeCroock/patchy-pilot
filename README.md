@@ -62,6 +62,12 @@ ppilot feature owner/repo#42
 # Run a planner step first — review and approve a plan before building
 ppilot feature --plan "Add retry mechanism"
 
+# Start in a fresh git worktree using an auto-generated name
+ppilot feature --worktree "Add retry mechanism"
+
+# Or choose the worktree and branch name yourself
+ppilot feature --worktree retry-backoff "Add retry mechanism"
+
 # Enable automatic repair if review finds issues
 ppilot feature --repair "Add retry mechanism"
 
@@ -89,6 +95,8 @@ When `--plan` is passed, a planner agent reads the codebase and spec, then produ
 For providers that support session continuation (currently `claude-code`), feedback rounds reuse the same session so the planner keeps its codebase context. Other providers fall back to a full re-prompt with the spec, previous plan, and feedback included.
 
 Each plan iteration is saved as `plan-v1.md`, `plan-v2.md`, etc. in the run's artifact directory.
+
+When `--worktree` is passed, patchy-pilot creates a sibling git worktree from the current `HEAD`, checks out a new branch with the same name, and runs the whole feature workflow there. If you omit the name, it uses `patchy-pilot-<timestamp>`. Because the worktree starts from committed state, your current working tree must be clean.
 
 ### `ppilot review <spec>`
 

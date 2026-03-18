@@ -1,5 +1,10 @@
 {
   "permissions": {
-    "allow": ["Bash(npx tsc:*)", "Bash(npm test:*)"]
+    "allow": [
+      "Bash(npx tsc:*)",
+      "Bash(npm test:*)",
+      "Bash(grep -r \"open\\\\|launch\" src --include=*.ts)",
+      "Bash(pnpm typecheck:*)"
+    ]
   }
 }

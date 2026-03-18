@@ -242,6 +242,7 @@ export interface ReviewOnlyResult {
   review: ReviewResult;
   gating: ReturnType<typeof evaluateGating>;
   validation: Awaited<ReturnType<typeof validate>>;
+  runDir: string;
 }
 
 export async function runReviewOnly(opts: ReviewOnlyOptions): Promise<ReviewOnlyResult> {
@@ -250,6 +251,8 @@ export async function runReviewOnly(opts: ReviewOnlyOptions): Promise<ReviewOnly
   await store.init();
 
   await ensureGitignore(opts.cwd);
+
+  const startedAt = new Date().toISOString();
 
   log.divider();
   log.info(`Review-only run ${runId}`);
@@ -285,10 +288,26 @@ export async function runReviewOnly(opts: ReviewOnlyOptions): Promise<ReviewOnly
   log.info(`Artifacts saved to ${store.path}`);
   log.divider();
 
+  const exitCode = gating.passed && validation.all_passed ? 0 : 1;
+  const result: RunResult = {
+    run_id: runId,
+    spec: opts.spec,
+    started_at: startedAt,
+    completed_at: new Date().toISOString(),
+    builder_provider: "(none)",
+    reviewer_provider: opts.config.reviewer.provider,
+    validation,
+    review,
+    repair_applied: false,
+    exit_code: exitCode,
+  };
+  await store.save("result.json", result);
+
   return {
     review,
     gating,
     validation,
+    runDir: store.path,
   };
 }
 

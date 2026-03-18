@@ -1,11 +1,36 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
+import { spawn } from "node:child_process";
 import type { RunResult, ReviewResult, ValidationResult, Issue } from "./schemas/review.js";
 import type { GatingResult } from "./gating.js";
 
 interface ReportData {
   result: RunResult;
   gating?: GatingResult;
+}
+
+/** Open a file in the system's default browser/application. Best-effort — never throws. */
+export function openReport(filePath: string): void {
+  let cmd: string;
+  let args: string[];
+  switch (process.platform) {
+    case "win32":
+      cmd = "cmd";
+      args = ["/c", "start", "", filePath];
+      break;
+    case "darwin":
+      cmd = "open";
+      args = [filePath];
+      break;
+    default:
+      cmd = "xdg-open";
+      args = [filePath];
+  }
+  try {
+    spawn(cmd, args, { detached: true, stdio: "ignore" }).unref();
+  } catch {
+    // Opening is optional — swallow errors silently
+  }
 }
 
 export async function loadReportData(runDir: string): Promise<ReportData> {

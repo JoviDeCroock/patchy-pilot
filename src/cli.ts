@@ -10,7 +10,7 @@ import { runFeature, runReviewOnly } from "./runner.js";
 import { runRepair } from "./repairer.js";
 import { createProvider } from "./providers/index.js";
 import { log } from "./utils/logger.js";
-import { loadReportData, generateReport } from "./report.js";
+import { loadReportData, generateReport, openReport } from "./report.js";
 
 const program = new Command();
 
@@ -35,6 +35,7 @@ program
   .option("--builder-model <model>", "Override builder model")
   .option("--reviewer-model <model>", "Override reviewer model")
   .option("--planner-model <model>", "Override planner model")
+  .option("--no-report", "Skip generating and opening the HTML report after the run")
   .action(async (specArg: string, opts) => {
     try {
       const config = await loadConfig(opts.cwd);
@@ -59,6 +60,11 @@ program
         silent: opts.silent,
       });
 
+      if (opts.report) {
+        const runDir = join(resolve(opts.cwd), config.artifacts_dir, result.run_id);
+        await generateAndOpenReport(runDir);
+      }
+
       process.exit(result.exit_code);
     } catch (err) {
       log.error(String(err));
@@ -74,6 +80,7 @@ program
   .option("--cwd <dir>", "Working directory", process.cwd())
   .option("--reviewer <provider>", "Override reviewer provider")
   .option("--reviewer-model <model>", "Override reviewer model")
+  .option("--no-report", "Skip generating and opening the HTML report after the run")
   .action(async (specArg: string, opts) => {
     try {
       const config = await loadConfig(opts.cwd);
@@ -87,6 +94,10 @@ program
         cwd: resolve(opts.cwd),
         silent: opts.silent,
       });
+
+      if (opts.report) {
+        await generateAndOpenReport(result.runDir);
+      }
 
       process.exit(result.validation.all_passed && result.gating.passed ? 0 : 1);
     } catch (err) {
@@ -179,6 +190,7 @@ program
 
       await writeFile(outPath, html, "utf-8");
       log.success(`Report written to ${outPath}`);
+      openReport(outPath);
     } catch (err) {
       log.error(String(err));
       process.exit(2);
@@ -186,6 +198,15 @@ program
   });
 
 program.parse();
+
+async function generateAndOpenReport(runDir: string): Promise<void> {
+  const data = await loadReportData(runDir);
+  const html = generateReport(data);
+  const outPath = join(runDir, "report.html");
+  await writeFile(outPath, html, "utf-8");
+  log.success(`Report written to ${outPath}`);
+  openReport(outPath);
+}
 
 /** Resolve spec from inline text, @file reference, or GitHub issue reference */
 async function resolveSpec(specArg: string, cwd?: string): Promise<string> {

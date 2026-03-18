@@ -311,9 +311,3 @@ Learned skills are written separately to:
 | `0`  | Gating passed (or repair was applied)          |
 | `1`  | Gating failed — review found blocking issues   |
 | `2`  | Runtime error (config, provider failure, etc.) |
-
-## Future improvements
-
-- Claude Code hooks integration (trigger review on `PostToolUse` or session end)
-- Review history and trend tracking
-- Multi-file focus analysis (changed files + nearby impacted files)

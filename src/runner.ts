@@ -88,9 +88,7 @@ export async function runFeature(opts: FeatureOptions): Promise<RunResult> {
 
   let builderSummary: string | undefined;
   let validation: ValidationResult = { all_passed: false };
-  let artifacts:
-    | Awaited<ReturnType<typeof collectArtifacts>>
-    | undefined;
+  let artifacts: Awaited<ReturnType<typeof collectArtifacts>> | undefined;
   let review: ReviewResult | undefined;
   let reviewApproval:
     | {
@@ -111,7 +109,9 @@ export async function runFeature(opts: FeatureOptions): Promise<RunResult> {
 
     if (builder) {
       buildAttempts++;
-      log.step(`Starting builder (attempt ${buildAttempts}${maxRebuilds > 0 ? `/${maxRebuilds + 1}` : ""})`);
+      log.step(
+        `Starting builder (attempt ${buildAttempts}${maxRebuilds > 0 ? `/${maxRebuilds + 1}` : ""})`,
+      );
 
       const prompt = rebuildContext
         ? builder.supportsContinue
@@ -159,7 +159,13 @@ export async function runFeature(opts: FeatureOptions): Promise<RunResult> {
 
     log.success("Gate: PASSED");
 
-    artifacts = await collectArtifacts(opts.spec, validation, opts.config, opts.cwd, builderSummary);
+    artifacts = await collectArtifacts(
+      opts.spec,
+      validation,
+      opts.config,
+      opts.cwd,
+      builderSummary,
+    );
     await store.save(attemptArtifactName("artifacts.json", workflowAttempt), artifacts);
 
     if (!reviewer) {
@@ -172,7 +178,10 @@ export async function runFeature(opts: FeatureOptions): Promise<RunResult> {
       printReviewSummary(review);
     } catch (err) {
       if (err instanceof ReviewExecutionError && err.rawOutput) {
-        await store.save(attemptArtifactName("review-raw-output.txt", workflowAttempt), err.rawOutput);
+        await store.save(
+          attemptArtifactName("review-raw-output.txt", workflowAttempt),
+          err.rawOutput,
+        );
       }
       throw err;
     }
@@ -197,7 +206,9 @@ export async function runFeature(opts: FeatureOptions): Promise<RunResult> {
       validation,
       review,
     };
-    log.warn(`Review not approved; bouncing back to build (${rebuildsUsed}/${maxRebuilds} rebuilds used)`);
+    log.warn(
+      `Review not approved; bouncing back to build (${rebuildsUsed}/${maxRebuilds} rebuilds used)`,
+    );
   }
 
   if (builderSummary) {
@@ -228,7 +239,7 @@ export async function runFeature(opts: FeatureOptions): Promise<RunResult> {
     max_rebuilds: maxRebuilds,
     validation,
     review,
-    review_approved: opts.skipReview ? undefined : reviewApproval?.passed ?? false,
+    review_approved: opts.skipReview ? undefined : (reviewApproval?.passed ?? false),
     exit_code: exitCode,
   };
 
@@ -271,7 +282,9 @@ function getValidationFailureReasons(validation: ValidationResult): string[] {
     }
 
     const excerpt = firstOutputLine(result.output);
-    reasons.push(excerpt ? `${capitalize(check)} failed: ${excerpt}` : `${capitalize(check)} failed`);
+    reasons.push(
+      excerpt ? `${capitalize(check)} failed: ${excerpt}` : `${capitalize(check)} failed`,
+    );
   }
 
   if (reasons.length === 0 && !validation.all_passed) {

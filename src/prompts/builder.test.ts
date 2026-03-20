@@ -4,7 +4,10 @@ import { buildPrompt, buildContinuePrompt, type RebuildContext } from "./builder
 const rebuildContext: RebuildContext = {
   attempt: 2,
   failure_stage: "review",
-  reasons: ["Reviewer recommended needs_changes", "Blocking category \"critical_issues\" has 1 issues"],
+  reasons: [
+    "Reviewer recommended needs_changes",
+    'Blocking category "critical_issues" has 1 issues',
+  ],
   validation: {
     formatter: { passed: true, output: "" },
     tests: { passed: false, output: "1 test failed" },

@@ -32,7 +32,11 @@ program
   .option("--plan", "Run a planner agent before building")
   .option("--worktree [name]", "Run the feature workflow in a new git worktree")
   .option("--silent", "Suppress real-time streamed output from provider steps")
-  .option("--max-rebuilds <count>", "Max rebuilds after a failed gate or review", parseNonNegativeInteger)
+  .option(
+    "--max-rebuilds <count>",
+    "Max rebuilds after a failed gate or review",
+    parseNonNegativeInteger,
+  )
   .option("--cwd <dir>", "Working directory", process.cwd())
   .option("--builder <provider>", "Override builder provider")
   .option("--reviewer <provider>", "Override reviewer provider")

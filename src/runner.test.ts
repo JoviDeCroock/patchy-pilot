@@ -114,7 +114,10 @@ describe("runFeature", () => {
     });
 
     mocks.validate
-      .mockResolvedValueOnce({ tests: { passed: false, output: "boom\nmore output" }, all_passed: false })
+      .mockResolvedValueOnce({
+        tests: { passed: false, output: "boom\nmore output" },
+        all_passed: false,
+      })
       .mockResolvedValueOnce({ tests: { passed: true, output: "" }, all_passed: true });
 
     mocks.collectArtifacts.mockResolvedValue({ spec: "Spec", validation: { all_passed: true } });
@@ -127,7 +130,9 @@ describe("runFeature", () => {
     });
 
     expect(builderRun).toHaveBeenCalledTimes(2);
-    expect(builderRun.mock.calls[1][0]).toContain("Revise the current implementation instead of starting over");
+    expect(builderRun.mock.calls[1][0]).toContain(
+      "Revise the current implementation instead of starting over",
+    );
     expect(builderRun.mock.calls[1][0]).toContain("Tests failed: boom");
     expect(builderRun.mock.calls[1][1]).toMatchObject({ cwd: "/repo", continue: true });
     expect(mocks.runReview).toHaveBeenCalledTimes(1);

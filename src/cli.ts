@@ -173,7 +173,7 @@ program
   });
 
 program
-  .command("prod")
+  .command("prd")
   .description("Generate a polished PRD/spec from a rough idea, brief, or issue")
   .argument("<spec>", "Product brief (inline text, GitHub issue or @path/to/file)")
   .option("--cwd <dir>", "Working directory", process.cwd())

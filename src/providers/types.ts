@@ -3,7 +3,7 @@ export interface ProviderResponse {
   exitCode: number;
 }
 
-export type ProviderRole = "builder" | "reviewer" | "repairer" | "learner" | "planner";
+export type ProviderRole = "builder" | "reviewer" | "learner" | "planner";
 
 export interface ProviderOptions {
   model?: string;

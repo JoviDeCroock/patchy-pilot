@@ -8,8 +8,6 @@ import { loadConfig } from "./config.js";
 import { parseGitHubIssue, fetchGitHubIssue } from "./github-issue.js";
 import { runLearn } from "./learner.js";
 import { runFeature, runReviewOnly } from "./runner.js";
-import { runRepair } from "./repairer.js";
-import { createProvider } from "./providers/index.js";
 import { log } from "./utils/logger.js";
 import { prepareWorktreeSession } from "./utils/worktree.js";
 import { loadReportData, generateReport } from "./report.js";
@@ -27,14 +25,14 @@ program
 
 program
   .command("feature")
-  .description("Full workflow: build a feature, validate, review, and optionally repair")
-  .argument("<spec>", "Feature specification (inline text or @path/to/file)")
+  .description("Full workflow: build, gate, review, and rebuild on failures")
+  .argument("<spec>", "Feature specification (inline text, GitHub issue or @path/to/file)")
   .option("--no-build", "Skip the build step (review existing changes)")
   .option("--no-review", "Skip the review step")
-  .option("--repair", "Enable repair pass if review finds issues")
   .option("--plan", "Run a planner agent before building")
   .option("--worktree [name]", "Run the feature workflow in a new git worktree")
   .option("--silent", "Suppress real-time streamed output from provider steps")
+  .option("--max-rebuilds <count>", "Max rebuilds after a failed gate or review", parseNonNegativeInteger)
   .option("--cwd <dir>", "Working directory", process.cwd())
   .option("--builder <provider>", "Override builder provider")
   .option("--reviewer <provider>", "Override reviewer provider")
@@ -64,6 +62,7 @@ program
       if (opts.builderModel) config.builder.model = opts.builderModel;
       if (opts.reviewerModel) config.reviewer.model = opts.reviewerModel;
       if (opts.plannerModel) config.planner.model = opts.plannerModel;
+      if (opts.maxRebuilds !== undefined) config.workflow.max_rebuilds = opts.maxRebuilds;
 
       const spec = await resolveSpec(specArg, sessionCwd);
       const result = await runFeature({
@@ -72,7 +71,6 @@ program
         cwd: sessionCwd,
         skipBuild: !opts.build,
         skipReview: !opts.review,
-        repair: opts.repair,
         plan: opts.plan,
         silent: opts.silent,
       });
@@ -107,40 +105,6 @@ program
       });
 
       process.exit(result.validation.all_passed && result.gating.passed ? 0 : 1);
-    } catch (err) {
-      log.error(String(err));
-      process.exit(2);
-    }
-  });
-
-program
-  .command("repair")
-  .description("Repair pass: fix issues from a review result file")
-  .argument("<review-file>", "Path to review.json from a previous run")
-  .argument("<spec>", "Original specification (inline text or @path/to/file)")
-  .option("--silent", "Suppress real-time streamed output from provider steps")
-  .option("--cwd <dir>", "Working directory", process.cwd())
-  .option("--repairer <provider>", "Override repairer provider")
-  .option("--repairer-model <model>", "Override repairer model")
-  .action(async (reviewFile: string, specArg: string, opts) => {
-    try {
-      const config = await loadConfig(opts.cwd);
-      if (opts.repairer) config.repairer.provider = opts.repairer;
-      if (opts.repairerModel) config.repairer.model = opts.repairerModel;
-
-      const spec = await resolveSpec(specArg, opts.cwd);
-      const reviewRaw = await readFile(resolve(reviewFile), "utf-8");
-      const review = JSON.parse(reviewRaw);
-
-      const provider = createProvider(config.repairer.provider, {
-        model: config.repairer.model,
-        role: "repairer",
-      });
-      const onData = opts.silent ? undefined : (chunk: string) => log.stream(chunk);
-      const output = await runRepair(provider, spec, review, resolve(opts.cwd), { onData });
-
-      console.log(output.output);
-      process.exit(output.exitCode === 0 ? 0 : 2);
     } catch (err) {
       log.error(String(err));
       process.exit(2);
@@ -249,6 +213,14 @@ function parseInteger(value: string): number {
   const parsed = Number.parseInt(value, 10);
   if (!Number.isFinite(parsed) || parsed <= 0) {
     throw new Error(`Expected a positive integer, received: ${value}`);
+  }
+  return parsed;
+}
+
+function parseNonNegativeInteger(value: string): number {
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    throw new Error(`Expected a non-negative integer, received: ${value}`);
   }
   return parsed;
 }

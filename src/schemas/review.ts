@@ -89,9 +89,12 @@ export const RunResultSchema = z.object({
   completed_at: z.string(),
   builder_provider: z.string(),
   reviewer_provider: z.string(),
+  build_attempts: z.number().int().nonnegative(),
+  rebuilds_used: z.number().int().nonnegative(),
+  max_rebuilds: z.number().int().nonnegative(),
   validation: ValidationResultSchema,
   review: ReviewResultSchema.optional(),
-  repair_applied: z.boolean(),
+  review_approved: z.boolean().optional(),
   exit_code: z.number(),
 });
 export type RunResult = z.infer<typeof RunResultSchema>;

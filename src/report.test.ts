@@ -11,6 +11,9 @@ function makeRunResult(overrides: Partial<RunResult> = {}): RunResult {
     completed_at: "2026-03-17T10:02:30.000Z",
     builder_provider: "claude-code",
     reviewer_provider: "claude-code",
+    build_attempts: 1,
+    rebuilds_used: 0,
+    max_rebuilds: 2,
     validation: { all_passed: true },
     review: {
       critical_issues: [],
@@ -23,7 +26,7 @@ function makeRunResult(overrides: Partial<RunResult> = {}): RunResult {
       merge_recommendation: "safe_to_merge",
       short_summary: "Implementation looks good.",
     },
-    repair_applied: false,
+    review_approved: true,
     exit_code: 0,
     ...overrides,
   };
@@ -79,18 +82,18 @@ describe("generateReport", () => {
     expect(html).toContain("Review was skipped");
   });
 
-  it("shows repair applied tag", () => {
+  it("shows rebuild tag when rebuilds were used", () => {
     const html = generateReport({
-      result: makeRunResult({ repair_applied: true }),
+      result: makeRunResult({ build_attempts: 3, rebuilds_used: 2 }),
     });
-    expect(html).toContain("Repair applied");
+    expect(html).toContain("2 rebuilds used");
   });
 
-  it("does not show repair tag when not applied", () => {
+  it("does not show rebuild tag when no rebuilds were used", () => {
     const html = generateReport({
-      result: makeRunResult({ repair_applied: false }),
+      result: makeRunResult({ rebuilds_used: 0 }),
     });
-    expect(html).not.toContain("Repair applied");
+    expect(html).not.toContain("rebuilds used");
   });
 
   it("renders gating section when provided", () => {

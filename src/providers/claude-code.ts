@@ -31,7 +31,7 @@ export class ClaudeCodeProvider implements AIProvider {
 
     if (this.options.dangerouslySkipPermissions) {
       args.unshift("--dangerously-skip-permissions");
-    } else if (this.options.role === "builder" || this.options.role === "repairer") {
+    } else if (this.options.role === "builder") {
       args.unshift("--permission-mode", "acceptEdits");
     } else {
       args.unshift("--permission-mode", "default");

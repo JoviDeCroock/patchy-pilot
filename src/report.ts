@@ -55,7 +55,8 @@ ${CSS}
     <span>${esc(duration)}</span>
     <span>Builder: ${esc(result.builder_provider)}</span>
     <span>Reviewer: ${esc(result.reviewer_provider)}</span>
-    ${result.repair_applied ? '<span class="tag tag-repair">Repair applied</span>' : ""}
+    <span>Build attempts: ${result.build_attempts ?? 0}</span>
+    ${result.rebuilds_used ? `<span class="tag tag-rebuild">${result.rebuilds_used} rebuild${result.rebuilds_used === 1 ? "" : "s"} used</span>` : ""}
   </div>
 </section>
 
@@ -293,7 +294,7 @@ header {
 }
 
 .tag { padding: 0.15em 0.5em; border-radius: 4px; font-size: 0.8rem; }
-.tag-repair { background: var(--purple); color: #fff; }
+.tag-rebuild { background: var(--purple); color: #fff; }
 
 /* Sections */
 section {

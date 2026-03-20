@@ -15,7 +15,7 @@ interface GatingResult {
 interface StoredRunResult {
   completed_at?: string;
   exit_code?: number;
-  repair_applied?: boolean;
+  rebuilds_used?: number;
   validation?: ValidationResult;
   review?: ReviewResult;
 }
@@ -111,7 +111,7 @@ async function loadRunSummary(runsDir: string, runId: string): Promise<LearnRunS
     run_id: runId,
     completed_at: result?.completed_at,
     exit_code: result?.exit_code,
-    repair_applied: result?.repair_applied ?? false,
+    rebuilds_used: result?.rebuilds_used ?? 0,
     spec_preview: clip(spec, 1_500),
     builder_summary: clip(builderSummary, 1_500),
     validation: summarizeValidation(validation ?? result?.validation),

@@ -132,6 +132,29 @@ ppilot learn --learner opencode --learner-model gpt-5
 
 The command writes a `README.md`, `manifest.json`, and one Markdown file per generated skill under `.patchy-pilot/skills/`.
 
+### `ppilot prod <spec>`
+
+Generate a polished PRD (Product Requirements Document) from a rough idea, brief, or GitHub issue.
+
+```bash
+# From inline text
+ppilot prod "Add a notification system for order status updates"
+
+# From a file
+ppilot prod @ideas/notifications.md
+
+# From a GitHub issue
+ppilot prod https://github.com/owner/repo/issues/42
+
+# Write the PRD to a file
+ppilot prod "Add notifications" --output specs/notifications-prd.md
+
+# Suppress streaming output (only print final result)
+ppilot prod --silent "Add notifications"
+```
+
+The command reuses the `planner` provider configuration. Override with `--planner` and `--planner-model`.
+
 ### `ppilot report [run-id]`
 
 Generate a self-contained HTML report from a run's artifacts.

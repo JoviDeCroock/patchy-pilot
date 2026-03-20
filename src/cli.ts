@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 
 import { Command } from "commander";
-import { readFile, readdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import { readFileSync } from "node:fs";
-import { resolve, join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { loadConfig } from "./config.js";
 import { parseGitHubIssue, fetchGitHubIssue } from "./github-issue.js";
 import { runLearn } from "./learner.js";
@@ -11,6 +11,7 @@ import { runFeature, runReviewOnly } from "./runner.js";
 import { log } from "./utils/logger.js";
 import { prepareWorktreeSession } from "./utils/worktree.js";
 import { loadReportData, generateReport } from "./report.js";
+import { runPrd } from "./prd.js";
 
 const { version } = JSON.parse(
   readFileSync(new URL("../package.json", import.meta.url), "utf-8"),
@@ -165,6 +166,50 @@ program
 
       await writeFile(outPath, html, "utf-8");
       log.success(`Report written to ${outPath}`);
+    } catch (err) {
+      log.error(String(err));
+      process.exit(2);
+    }
+  });
+
+program
+  .command("prd")
+  .description("Generate a polished PRD/spec from a rough idea, brief, or issue")
+  .argument("<spec>", "Product brief (inline text, GitHub issue or @path/to/file)")
+  .option("--cwd <dir>", "Working directory", process.cwd())
+  .option("--silent", "Suppress real-time streamed output")
+  .option("-o, --output <file>", "Write the PRD to a file")
+  .option("--planner <provider>", "Override provider (reuses planner config)")
+  .option("--planner-model <model>", "Override model (reuses planner config)")
+  .action(async (specArg: string, opts) => {
+    try {
+      const config = await loadConfig(opts.cwd);
+      if (opts.planner) config.planner.provider = opts.planner;
+      if (opts.plannerModel) config.planner.model = opts.plannerModel;
+
+      const spec = await resolveSpec(specArg, opts.cwd);
+      const result = await runPrd({
+        spec,
+        config,
+        cwd: resolve(opts.cwd),
+        onData: opts.silent ? undefined : (text) => process.stdout.write(text),
+      });
+
+      if (opts.silent) {
+        console.log(result.prd);
+      } else {
+        if (!result.prd.endsWith("\n")) {
+          process.stdout.write("\n");
+        }
+        log.divider();
+      }
+
+      if (opts.output) {
+        const outPath = resolve(opts.output);
+        await mkdir(dirname(outPath), { recursive: true });
+        await writeFile(outPath, result.prd, "utf-8");
+        log.success(`PRD written to ${outPath}`);
+      }
     } catch (err) {
       log.error(String(err));
       process.exit(2);

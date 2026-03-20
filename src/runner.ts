@@ -1,13 +1,12 @@
 import { join } from "node:path";
 import { readFile, writeFile, access } from "node:fs/promises";
 import type { Config } from "./schemas/config.js";
-import type { ReviewResult, RunResult } from "./schemas/review.js";
+import type { ReviewResult, RunResult, ValidationResult } from "./schemas/review.js";
 import { createProvider } from "./providers/index.js";
-import { buildPrompt } from "./prompts/builder.js";
+import { buildContinuePrompt, buildPrompt, type RebuildContext } from "./prompts/builder.js";
 import { validate } from "./validator.js";
 import { collectArtifacts } from "./collector.js";
 import { ReviewExecutionError, runReview } from "./reviewer.js";
-import { runRepair } from "./repairer.js";
 import { evaluateGating } from "./gating.js";
 import { ArtifactStore, createRunId } from "./utils/artifacts.js";
 import { runPlanner } from "./planner.js";
@@ -19,7 +18,6 @@ export interface FeatureOptions {
   cwd: string;
   skipBuild?: boolean;
   skipReview?: boolean;
-  repair?: boolean;
   plan?: boolean;
   /** Suppress real-time streamed output from provider steps. */
   silent?: boolean;
@@ -61,8 +59,10 @@ export async function runFeature(opts: FeatureOptions): Promise<RunResult> {
         completed_at: new Date().toISOString(),
         builder_provider: opts.config.builder.provider,
         reviewer_provider: opts.config.reviewer.provider,
+        build_attempts: 0,
+        rebuilds_used: 0,
+        max_rebuilds: opts.skipBuild ? 0 : opts.config.workflow.max_rebuilds,
         validation: { all_passed: false },
-        repair_applied: false,
         exit_code: 2,
       };
       await store.save("result.json", abortResult);
@@ -71,138 +71,161 @@ export async function runFeature(opts: FeatureOptions): Promise<RunResult> {
     planText = planResult.plan;
   }
 
-  // Step 1: Build
+  const maxRebuilds = opts.skipBuild ? 0 : opts.config.workflow.max_rebuilds;
+  const builder = opts.skipBuild
+    ? undefined
+    : createProvider(opts.config.builder.provider, {
+        model: opts.config.builder.model,
+        dangerouslySkipPermissions: opts.config.builder.dangerouslySkipPermissions,
+        role: "builder",
+      });
+  const reviewer = opts.skipReview
+    ? undefined
+    : createProvider(opts.config.reviewer.provider, {
+        model: opts.config.reviewer.model,
+        role: "reviewer",
+      });
+
   let builderSummary: string | undefined;
-  if (!opts.skipBuild) {
-    log.step("Starting builder");
-    const builder = createProvider(opts.config.builder.provider, {
-      model: opts.config.builder.model,
-      dangerouslySkipPermissions: opts.config.builder.dangerouslySkipPermissions,
-      role: "builder",
-    });
-    const prompt = buildPrompt(opts.spec, planText);
-    const result = await builder.run(prompt, { cwd: opts.cwd, onData });
-    builderSummary = result.output;
-    await store.save("builder-output.txt", builderSummary);
-    log.success(`Builder finished (exit ${result.exitCode})`);
-    if (result.exitCode !== 0) {
-      throw new Error(`Builder exited with code ${result.exitCode}`);
+  let validation: ValidationResult = { all_passed: false };
+  let artifacts: Awaited<ReturnType<typeof collectArtifacts>> | undefined;
+  let review: ReviewResult | undefined;
+  let reviewApproval:
+    | {
+        passed: boolean;
+        reasons: string[];
+      }
+    | undefined;
+  let buildAttempts = 0;
+  let rebuildsUsed = 0;
+  let rebuildContext: RebuildContext | undefined;
+  let workflowAttempt = 0;
+
+  while (true) {
+    workflowAttempt++;
+    artifacts = undefined;
+    review = undefined;
+    reviewApproval = undefined;
+
+    if (builder) {
+      buildAttempts++;
+      log.step(
+        `Starting builder (attempt ${buildAttempts}${maxRebuilds > 0 ? `/${maxRebuilds + 1}` : ""})`,
+      );
+
+      const prompt = rebuildContext
+        ? builder.supportsContinue
+          ? buildContinuePrompt(rebuildContext)
+          : buildPrompt(opts.spec, { plan: planText, rebuildContext })
+        : buildPrompt(opts.spec, { plan: planText });
+
+      const result = await builder.run(prompt, {
+        cwd: opts.cwd,
+        onData,
+        continue: rebuildContext ? builder.supportsContinue : undefined,
+      });
+      builderSummary = result.output;
+      await store.save(attemptArtifactName("builder-output.txt", workflowAttempt), builderSummary);
+      log.success(`Builder finished (exit ${result.exitCode})`);
+      if (result.exitCode !== 0) {
+        throw new Error(`Builder exited with code ${result.exitCode}`);
+      }
+    } else if (workflowAttempt === 1) {
+      log.info("Skipping build step");
     }
-  } else {
-    log.info("Skipping build step");
-  }
 
-  // Step 2: Validate
-  let validation = await validate(opts.config, opts.cwd);
-  await store.save("validation.json", validation);
+    validation = await validate(opts.config, opts.cwd);
+    await store.save(attemptArtifactName("validation.json", workflowAttempt), validation);
 
-  // Step 3: Collect artifacts
-  let artifacts = await collectArtifacts(
-    opts.spec,
-    validation,
-    opts.config,
-    opts.cwd,
-    builderSummary,
-  );
-  await store.save("artifacts.json", artifacts);
+    const gateReasons = getValidationFailureReasons(validation);
+    if (gateReasons.length > 0) {
+      log.warn("Gate: FAILED");
+      gateReasons.forEach((reason) => log.detail(reason));
 
-  // Step 4: Review
-  let review: ReviewResult | undefined; // eslint-disable-line prefer-const -- reassigned in repair loop
-  if (!opts.skipReview) {
-    const reviewer = createProvider(opts.config.reviewer.provider, {
-      model: opts.config.reviewer.model,
-      role: "reviewer",
-    });
+      if (!builder || rebuildsUsed >= maxRebuilds) {
+        break;
+      }
+
+      rebuildsUsed++;
+      rebuildContext = {
+        attempt: buildAttempts + 1,
+        failure_stage: "gate",
+        reasons: gateReasons,
+        validation,
+      };
+      log.warn(`Bouncing back to build (${rebuildsUsed}/${maxRebuilds} rebuilds used)`);
+      continue;
+    }
+
+    log.success("Gate: PASSED");
+
+    artifacts = await collectArtifacts(
+      opts.spec,
+      validation,
+      opts.config,
+      opts.cwd,
+      builderSummary,
+    );
+    await store.save(attemptArtifactName("artifacts.json", workflowAttempt), artifacts);
+
+    if (!reviewer) {
+      break;
+    }
+
     try {
       review = await runReview(reviewer, artifacts, opts.config.review_rules, opts.cwd, { onData });
-      await store.save("review.json", review);
+      await store.save(attemptArtifactName("review.json", workflowAttempt), review);
       printReviewSummary(review);
     } catch (err) {
       if (err instanceof ReviewExecutionError && err.rawOutput) {
-        await store.save("review-raw-output.txt", err.rawOutput);
+        await store.save(
+          attemptArtifactName("review-raw-output.txt", workflowAttempt),
+          err.rawOutput,
+        );
       }
       throw err;
     }
+
+    reviewApproval = evaluateReviewApproval(review, opts.config);
+    await store.save(attemptArtifactName("gating.json", workflowAttempt), reviewApproval);
+
+    if (reviewApproval.passed) {
+      rebuildContext = undefined;
+      break;
+    }
+
+    if (!builder || rebuildsUsed >= maxRebuilds) {
+      break;
+    }
+
+    rebuildsUsed++;
+    rebuildContext = {
+      attempt: buildAttempts + 1,
+      failure_stage: "review",
+      reasons: reviewApproval.reasons,
+      validation,
+      review,
+    };
+    log.warn(
+      `Review not approved; bouncing back to build (${rebuildsUsed}/${maxRebuilds} rebuilds used)`,
+    );
   }
 
-  // Step 5: Gating
-  let gatingPassed = validation.all_passed;
+  if (builderSummary) {
+    await store.save("builder-output.txt", builderSummary);
+  }
+  await store.save("validation.json", validation);
+  if (artifacts) {
+    await store.save("artifacts.json", artifacts);
+  }
   if (review) {
-    const gating = evaluateGating(review, opts.config);
-    gatingPassed = validation.all_passed && gating.passed;
-    await store.save("gating.json", gating);
+    await store.save("review.json", review);
+  }
+  if (reviewApproval) {
+    await store.save("gating.json", reviewApproval);
   }
 
-  // Step 6: Optional repair (capped iterations)
-  let repairApplied = false;
-  const shouldRepair = opts.repair ?? opts.config.repairer.enabled;
-  const maxRepairIterations = opts.config.repairer.max_iterations;
-
-  if (review && !gatingPassed && shouldRepair) {
-    const repairer = createProvider(opts.config.repairer.provider, {
-      model: opts.config.repairer.model,
-      role: "repairer",
-    });
-    const reviewer = createProvider(opts.config.reviewer.provider, {
-      model: opts.config.reviewer.model,
-      role: "reviewer",
-    });
-
-    let currentReview = review;
-    for (let attempt = 1; attempt <= maxRepairIterations; attempt++) {
-      log.step(`Repair attempt ${attempt}/${maxRepairIterations}`);
-
-      const repairOutput = await runRepair(repairer, opts.spec, currentReview, opts.cwd, {
-        onData,
-      });
-      await store.save(`repair-output-${attempt}.txt`, repairOutput.output);
-      if (repairOutput.exitCode !== 0) {
-        throw new Error(`Repairer exited with code ${repairOutput.exitCode}`);
-      }
-      repairApplied = true;
-
-      validation = await validate(opts.config, opts.cwd);
-      await store.save(`validation-repair-${attempt}.json`, validation);
-      artifacts = await collectArtifacts(
-        opts.spec,
-        validation,
-        opts.config,
-        opts.cwd,
-        builderSummary,
-      );
-      await store.save(`artifacts-repair-${attempt}.json`, artifacts);
-
-      try {
-        currentReview = await runReview(reviewer, artifacts, opts.config.review_rules, opts.cwd, {
-          onData,
-        });
-      } catch (err) {
-        if (err instanceof ReviewExecutionError && err.rawOutput) {
-          await store.save(`review-repair-${attempt}-raw-output.txt`, err.rawOutput);
-        }
-        throw err;
-      }
-
-      await store.save(`review-repair-${attempt}.json`, currentReview);
-      const reGating = evaluateGating(currentReview, opts.config);
-      await store.save(`gating-repair-${attempt}.json`, reGating);
-
-      review = currentReview;
-      gatingPassed = validation.all_passed && reGating.passed;
-
-      if (gatingPassed) {
-        log.success(`Repair succeeded on attempt ${attempt}`);
-        break;
-      }
-    }
-
-    if (!gatingPassed) {
-      log.warn(`Repair did not resolve all issues after ${maxRepairIterations} attempts`);
-    }
-  }
-
-  // Step 7: Final summary
-  const exitCode = review ? (gatingPassed ? 0 : 1) : validation.all_passed ? 0 : 1;
+  const exitCode = validation.all_passed && (opts.skipReview || reviewApproval?.passed) ? 0 : 1;
 
   const result: RunResult = {
     run_id: runId,
@@ -211,9 +234,12 @@ export async function runFeature(opts: FeatureOptions): Promise<RunResult> {
     completed_at: new Date().toISOString(),
     builder_provider: opts.config.builder.provider,
     reviewer_provider: opts.config.reviewer.provider,
+    build_attempts: buildAttempts,
+    rebuilds_used: rebuildsUsed,
+    max_rebuilds: maxRebuilds,
     validation,
     review,
-    repair_applied: repairApplied,
+    review_approved: opts.skipReview ? undefined : (reviewApproval?.passed ?? false),
     exit_code: exitCode,
   };
 
@@ -229,6 +255,78 @@ export async function runFeature(opts: FeatureOptions): Promise<RunResult> {
   log.divider();
 
   return result;
+}
+
+function attemptArtifactName(name: string, attempt: number): string {
+  const dotIndex = name.lastIndexOf(".");
+  if (dotIndex === -1) {
+    return `${name}-attempt-${attempt}`;
+  }
+
+  return `${name.slice(0, dotIndex)}-attempt-${attempt}${name.slice(dotIndex)}`;
+}
+
+function getValidationFailureReasons(validation: ValidationResult): string[] {
+  const reasons: string[] = [];
+  const checks: Array<keyof Omit<ValidationResult, "all_passed">> = [
+    "formatter",
+    "linter",
+    "typecheck",
+    "tests",
+  ];
+
+  for (const check of checks) {
+    const result = validation[check];
+    if (!result || result.passed) {
+      continue;
+    }
+
+    const excerpt = firstOutputLine(result.output);
+    reasons.push(
+      excerpt ? `${capitalize(check)} failed: ${excerpt}` : `${capitalize(check)} failed`,
+    );
+  }
+
+  if (reasons.length === 0 && !validation.all_passed) {
+    reasons.push("One or more validation checks failed");
+  }
+
+  return reasons;
+}
+
+function evaluateReviewApproval(
+  review: ReviewResult,
+  config: Config,
+): { passed: boolean; reasons: string[] } {
+  const gating = evaluateGating(review, config);
+  const reasons = [...gating.reasons];
+
+  if (review.merge_recommendation !== "safe_to_merge") {
+    reasons.unshift(`Reviewer recommended ${review.merge_recommendation}`);
+    log.warn("Review approval: FAILED");
+    log.detail(`Reviewer recommended ${review.merge_recommendation}`);
+  } else if (gating.passed) {
+    log.success("Review approval: PASSED");
+  } else {
+    log.warn("Review approval: FAILED");
+  }
+
+  return {
+    passed: reasons.length === 0,
+    reasons,
+  };
+}
+
+function firstOutputLine(output: string): string | undefined {
+  const line = output
+    .split("\n")
+    .map((entry) => entry.trim())
+    .find(Boolean);
+  return line ? line.slice(0, 200) : undefined;
+}
+
+function capitalize(value: string): string {
+  return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
 export interface ReviewOnlyOptions {

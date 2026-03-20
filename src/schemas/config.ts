@@ -37,6 +37,10 @@ export const SafeAgentConfigSchema = BaseAgentConfigSchema.extend({
   dangerouslySkipPermissions: z.never().optional(),
 });
 
+export const WorkflowConfigSchema = z.object({
+  max_rebuilds: z.number().int().min(0).max(10).default(2),
+});
+
 export const ConfigSchema = z.object({
   planner: BaseAgentConfigSchema.default({
     provider: "claude-code",
@@ -47,10 +51,7 @@ export const ConfigSchema = z.object({
   reviewer: SafeAgentConfigSchema.default({
     provider: "claude-code",
   }),
-  repairer: SafeAgentConfigSchema.extend({
-    enabled: z.boolean().default(false),
-    max_iterations: z.number().min(1).max(10).default(3),
-  }).default({}),
+  workflow: WorkflowConfigSchema.default({}),
   providers: z.record(z.string(), ProviderConfigSchema).default({}),
   validation: z
     .object({

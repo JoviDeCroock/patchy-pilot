@@ -6,8 +6,7 @@ describe("ConfigSchema", () => {
     const config = ConfigSchema.parse({});
     expect(config.builder.provider).toBe("claude-code");
     expect(config.reviewer.provider).toBe("claude-code");
-    expect(config.repairer.enabled).toBe(false);
-    expect(config.repairer.max_iterations).toBe(3);
+    expect(config.workflow.max_rebuilds).toBe(2);
     expect(config.thresholds.max_critical).toBe(0);
     expect(config.thresholds.max_high).toBe(2);
     expect(config.thresholds.min_confidence).toBe(0.6);
@@ -62,17 +61,16 @@ describe("ConfigSchema", () => {
     expect(config.base_branch).toBe("develop");
   });
 
-  it("allows repairer configuration", () => {
+  it("allows workflow retry configuration", () => {
     const config = ConfigSchema.parse({
-      repairer: { enabled: true, max_iterations: 5 },
+      workflow: { max_rebuilds: 4 },
     });
-    expect(config.repairer.enabled).toBe(true);
-    expect(config.repairer.max_iterations).toBe(5);
+    expect(config.workflow.max_rebuilds).toBe(4);
   });
 
-  it("rejects repairer max_iterations outside 1-10", () => {
-    expect(() => ConfigSchema.parse({ repairer: { max_iterations: 0 } })).toThrow();
-    expect(() => ConfigSchema.parse({ repairer: { max_iterations: 11 } })).toThrow();
+  it("rejects workflow max_rebuilds outside 0-10", () => {
+    expect(() => ConfigSchema.parse({ workflow: { max_rebuilds: -1 } })).toThrow();
+    expect(() => ConfigSchema.parse({ workflow: { max_rebuilds: 11 } })).toThrow();
   });
 
   it("rejects invalid block_on categories", () => {

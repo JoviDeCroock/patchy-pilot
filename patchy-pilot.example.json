@@ -12,11 +12,8 @@
     "provider": "claude-code",
     "model": "sonnet"
   },
-  "repairer": {
-    "provider": "claude-code",
-    "model": "sonnet",
-    "enabled": false,
-    "max_iterations": 3
+  "workflow": {
+    "max_rebuilds": 2
   },
   "validation": {
     "formatter": {

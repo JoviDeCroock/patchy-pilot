@@ -2,7 +2,7 @@ export interface LearnRunSummary {
   run_id: string;
   completed_at?: string;
   exit_code?: number;
-  repair_applied: boolean;
+  rebuilds_used: number;
   spec_preview?: string;
   builder_summary?: string;
   validation: Record<string, string>;

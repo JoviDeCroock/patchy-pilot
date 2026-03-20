@@ -7,16 +7,16 @@ One AI builds. Another AI reviews. Deterministic checks run in between. Everythi
 ## How it works
 
 ```
-spec → (optional plan) → builder AI → formatter/linter/typecheck/tests → artifact collection → reviewer AI → gating → (optional repair)
+spec → (optional plan) → builder AI → validation gate → reviewer AI → rebuild on failure (max 2 by default)
 ```
 
 1. An optional **planner** AI analyzes the spec and proposes an implementation plan for user approval
 2. A **builder** AI implements a feature from the spec (and plan, if provided)
-3. **Deterministic validation** runs (formatter, linter, typecheck, tests)
-4. **Artifacts** are collected (git diff, changed files, test output)
+3. **Deterministic validation** acts as a build gate (formatter, linter, typecheck, tests)
+4. If the gate passes, **artifacts** are collected (git diff, changed files, test output)
 5. A separate **reviewer** AI independently inspects the result
-6. **Gating** checks whether the review passes severity thresholds
-7. An optional **repair** pass fixes issues the reviewer found
+6. If the review is not approved, patchy-pilot bounces back to the builder with the gate/review feedback
+7. The loop stops after the initial build plus up to 2 rebuilds by default
 
 The reviewer is independent from the builder — it doesn't trust the builder's output and verifies everything against the original spec and the actual code.
 
@@ -43,7 +43,7 @@ node dist/cli.js <command>
 
 ### `ppilot feature <spec>`
 
-Full workflow: build → validate → review → (repair).
+Full workflow: build → gate → review, with automatic rebuilds when gate or review fails.
 
 ```bash
 # Inline spec
@@ -68,8 +68,8 @@ ppilot feature --worktree "Add retry mechanism"
 # Or choose the worktree and branch name yourself
 ppilot feature --worktree retry-backoff "Add retry mechanism"
 
-# Enable automatic repair if review finds issues
-ppilot feature --repair "Add retry mechanism"
+# Allow up to 4 rebuilds instead of the default 2
+ppilot feature --max-rebuilds 4 "Add retry mechanism"
 
 # Suppress real-time streamed output (streaming is on by default)
 ppilot feature --silent "Add retry mechanism"
@@ -113,18 +113,6 @@ ppilot review --no-report "Add retry mechanism"
 # From a GitHub issue
 ppilot review https://github.com/owner/repo/issues/42
 ppilot review owner/repo#42
-```
-
-### `ppilot repair <review-file> <spec>`
-
-Run a repair pass using findings from a previous review.
-
-```bash
-ppilot repair .patchy-pilot/runs/2026-03-16T14-30-00/review.json @specs/retry-mechanism.md
-ppilot repair --silent .patchy-pilot/runs/2026-03-16T14-30-00/review.json @specs/retry-mechanism.md
-
-# Spec from a GitHub issue
-ppilot repair .patchy-pilot/runs/2026-03-16T14-30-00/review.json owner/repo#42
 ```
 
 ### `ppilot learn`
@@ -174,7 +162,7 @@ The `<spec>` argument accepts three formats:
 
 ### GitHub issues
 
-When a spec looks like a GitHub issue reference, ppilot fetches the issue title and body using the GitHub CLI (`gh`) and uses the result as the specification for the run. This means you can point ppilot directly at a bug report or feature request and let it build, review, or repair from that.
+When a spec looks like a GitHub issue reference, ppilot fetches the issue title and body using the GitHub CLI (`gh`) and uses the result as the specification for the run. This means you can point ppilot directly at a bug report or feature request and let it build, review, or rebuild from that.
 
 **Requirements:** The [GitHub CLI](https://cli.github.com/) must be installed and authenticated (`gh auth login`). ppilot will exit with code 2 if the issue cannot be fetched.
 
@@ -184,7 +172,7 @@ ppilot feature https://github.com/acme/api/issues/99
 ppilot feature acme/api#99
 
 # Combine with any other flags
-ppilot feature --plan --repair acme/api#99
+ppilot feature --plan --max-rebuilds 3 acme/api#99
 ppilot review acme/api#99
 ```
 
@@ -194,7 +182,7 @@ Configuration is optional. If you do not provide a config file, patchy-pilot wil
 
 If you want to override providers, thresholds, or validation commands, create a `patchy-pilot.json` (or `.patchy-pilot.json`, or `.patchy-pilot/config.json`) in your project root. See `patchy-pilot.example.json` for a full example.
 
-`dangerouslySkipPermissions` is supported for the builder only. Reviewer and repairer configs reject it, and the learner never inherits dangerous permissions from the reviewer.
+`dangerouslySkipPermissions` is supported for the builder only. Reviewer configs reject it, and the learner never inherits dangerous permissions from the reviewer.
 
 ```json
 {
@@ -206,6 +194,9 @@ If you want to override providers, thresholds, or validation commands, create a 
   "reviewer": {
     "provider": "claude-code",
     "model": "sonnet"
+  },
+  "workflow": {
+    "max_rebuilds": 2
   },
   "validation": {
     "formatter": { "command": "npx", "args": ["prettier", "--check", "."], "enabled": true },
@@ -238,9 +229,7 @@ If you want to override providers, thresholds, or validation commands, create a 
 | `builder.dangerouslySkipPermissions` | Skip provider permission prompts/sandbox when supported; use only in an external sandbox | `false`                                    |
 | `reviewer.provider`                  | AI tool for reviewing                                                                    | `claude-code`                              |
 | `reviewer.model`                     | Model override for reviewer                                                              | (provider default)                         |
-| `repairer.provider`                  | AI tool for repair pass                                                                  | `claude-code`                              |
-| `repairer.enabled`                   | Auto-repair when review fails gating                                                     | `false`                                    |
-| `repairer.max_iterations`            | Max repair/review loops before giving up                                                 | `3`                                        |
+| `workflow.max_rebuilds`              | Max times `feature` bounces back to build after a failed gate or review                  | `2`                                        |
 | `validation.*`                       | Deterministic check commands                                                             | inferred from `package.json` when possible |
 | `thresholds.max_critical`            | Max critical issues before gating fails                                                  | `0`                                        |
 | `thresholds.max_high`                | Max high-severity issues before gating fails                                             | `2`                                        |
@@ -256,8 +245,8 @@ If you want to override providers, thresholds, or validation commands, create a 
 | ------------- | -------------- | ------------------------------------------------------------------------------------ |
 | `claude-code` | `claude`       | Claude Code CLI; reviewer/learner run with tools disabled                            |
 | `codex`       | `codex exec`   | OpenAI Codex CLI; reviewer/learner run in read-only sandbox                          |
-| `opencode`    | `opencode run` | OpenCode CLI; builder/repairer only because read-only review mode is not verified    |
-| `pi`          | `pi -p`        | Pi coding agent; builder/repairer only because read-only review mode is not verified |
+| `opencode`    | `opencode run` | OpenCode CLI; builder only because read-only review mode is not verified             |
+| `pi`          | `pi -p`        | Pi coding agent; builder only because read-only review mode is not verified          |
 
 Mix and match — use one provider for building and another for reviewing.
 
@@ -274,11 +263,15 @@ Each run saves artifacts to `.patchy-pilot/runs/<timestamp>/`:
   spec.md              # Original specification
   plan-v1.md           # Implementation plan (if --plan was used)
   builder-output.txt   # Builder's stdout/stderr
+  builder-output-attempt-1.txt
   validation.json      # Formatter/linter/typecheck/test results
+  validation-attempt-1.json
   artifacts.json       # Collected context (diff, files, validation)
+  artifacts-attempt-1.json
   review.json          # Structured review findings
   gating.json          # Pass/fail with reasons
-  repair-output.txt    # Repair pass output (if triggered)
+  review-attempt-1.json
+  gating-attempt-1.json
   result.json          # Final run summary with exit code
   report.html          # HTML report (generated via ppilot report)
 ```
@@ -316,6 +309,6 @@ Learned skills are written separately to:
 
 | Code | Meaning                                        |
 | ---- | ---------------------------------------------- |
-| `0`  | Gating passed (or repair was applied)          |
-| `1`  | Gating failed — review found blocking issues   |
+| `0`  | Validation gate passed and the review was approved |
+| `1`  | The validation gate failed or the review was not approved |
 | `2`  | Runtime error (config, provider failure, etc.) |

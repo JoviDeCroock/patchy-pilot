@@ -11,6 +11,8 @@ import { runFeature, runReviewOnly } from "./runner.js";
 import { log } from "./utils/logger.js";
 import { prepareWorktreeSession } from "./utils/worktree.js";
 import { loadReportData, generateReport } from "./report.js";
+import { loadHistory, computeTrendStats } from "./history.js";
+import { generateTrendsReport } from "./trends-report.js";
 
 const { version } = JSON.parse(
   readFileSync(new URL("../package.json", import.meta.url), "utf-8"),
@@ -165,6 +167,132 @@ program
 
       await writeFile(outPath, html, "utf-8");
       log.success(`Report written to ${outPath}`);
+    } catch (err) {
+      log.error(String(err));
+      process.exit(2);
+    }
+  });
+
+program
+  .command("history")
+  .description("Show a summary of past runs with key metrics")
+  .option("--cwd <dir>", "Working directory", process.cwd())
+  .option("--artifacts-dir <dir>", "Artifacts directory", ".patchy-pilot/runs")
+  .option("--limit <count>", "How many recent runs to show", parseInteger, 20)
+  .option("--json", "Output as JSON")
+  .action(async (opts) => {
+    try {
+      const runsDir = resolve(opts.cwd, opts.artifactsDir);
+      const runs = await loadHistory(runsDir, opts.limit);
+
+      if (opts.json) {
+        const stats = computeTrendStats(runs);
+        console.log(JSON.stringify({ runs, stats }, null, 2));
+        return;
+      }
+
+      if (runs.length === 0) {
+        log.warn("No runs found.");
+        return;
+      }
+
+      const stats = computeTrendStats(runs);
+
+      log.divider();
+      log.info(`Run History (${runs.length} run${runs.length === 1 ? "" : "s"})`);
+      log.divider();
+
+      // Column widths
+      const COL = { id: 19, date: 10, conf: 6, crit: 5, issues: 7, rec: 24, valid: 6, gate: 5 };
+      const COLORS = {
+        reset: "\x1b[0m", bold: "\x1b[1m", dim: "\x1b[2m",
+        red: "\x1b[31m", green: "\x1b[32m", yellow: "\x1b[33m",
+        cyan: "\x1b[36m", gray: "\x1b[90m",
+      };
+
+      const pad = (s: string, n: number) => s.slice(0, n).padEnd(n);
+
+      const header =
+        `  ${pad("RUN ID", COL.id)}  ${pad("DATE", COL.date)}  ${pad("CONF", COL.conf)}  ` +
+        `${pad("CRIT", COL.crit)}  ${pad("ISSUES", COL.issues)}  ${pad("RECOMMENDATION", COL.rec)}  ` +
+        `${pad("VALID", COL.valid)}  GATE`;
+      console.log(`${COLORS.dim}${header}${COLORS.reset}`);
+
+      for (const r of runs) {
+        const date = r.started_at.slice(0, 10);
+        const conf = r.confidence !== undefined ? r.confidence.toFixed(2) : "—";
+        const rec = (r.merge_recommendation ?? "—").replace(/_/g, " ");
+        const gateColor = r.exit_code === 0 ? COLORS.green : COLORS.red;
+        const gateStr = r.exit_code === 0 ? "PASS" : "FAIL";
+        const validStr = r.validation_passed ? "✓" : "✗";
+        const validColor = r.validation_passed ? COLORS.green : COLORS.red;
+        const critColor = r.critical_issues > 0 ? COLORS.red : COLORS.reset;
+
+        const line =
+          `  ${pad(r.run_id, COL.id)}  ${pad(date, COL.date)}  ${pad(conf, COL.conf)}  ` +
+          `${critColor}${pad(String(r.critical_issues), COL.crit)}${COLORS.reset}  ` +
+          `${pad(String(r.total_issues), COL.issues)}  ${pad(rec, COL.rec)}  ` +
+          `${validColor}${pad(validStr, COL.valid)}${COLORS.reset}  ` +
+          `${gateColor}${gateStr}${COLORS.reset}`;
+        console.log(line);
+      }
+
+      log.divider();
+
+      const trendArrow =
+        stats.confidence_trend === "improving" ? "↑" :
+        stats.confidence_trend === "declining" ? "↓" : "→";
+      const trendColor =
+        stats.confidence_trend === "improving" ? COLORS.green :
+        stats.confidence_trend === "declining" ? COLORS.red : COLORS.yellow;
+
+      log.info(
+        `${runs.length} runs  |  pass rate: ${Math.round(stats.pass_rate * 100)}%  |  ` +
+        `avg confidence: ${stats.avg_confidence.toFixed(2)}  |  ` +
+        `validation: ${Math.round(stats.validation_pass_rate * 100)}% pass`,
+      );
+      console.log(
+        `  ${trendColor}${trendArrow} Confidence trend: ${stats.confidence_trend}${COLORS.reset}`,
+      );
+
+      if (Object.keys(stats.recommendation_distribution).length > 0) {
+        const recParts = Object.entries(stats.recommendation_distribution)
+          .sort((a, b) => b[1] - a[1])
+          .map(([k, v]) => `${k.replace(/_/g, " ")}: ${v}`)
+          .join("  |  ");
+        log.detail(`Recommendations — ${recParts}`);
+      }
+
+      log.divider();
+    } catch (err) {
+      log.error(String(err));
+      process.exit(2);
+    }
+  });
+
+program
+  .command("trends")
+  .description("Generate an HTML trends report across all runs")
+  .option("--cwd <dir>", "Working directory", process.cwd())
+  .option("--artifacts-dir <dir>", "Artifacts directory", ".patchy-pilot/runs")
+  .option("--limit <count>", "How many recent runs to include", parseInteger, 50)
+  .option("-o, --output <file>", "Output HTML file path (defaults to <artifacts-dir>/trends.html)")
+  .action(async (opts) => {
+    try {
+      const runsDir = resolve(opts.cwd, opts.artifactsDir);
+      const runs = await loadHistory(runsDir, opts.limit);
+
+      if (runs.length === 0) {
+        log.warn("No runs found — nothing to report.");
+        return;
+      }
+
+      const stats = computeTrendStats(runs);
+      const html = generateTrendsReport(runs, stats);
+
+      const outPath = opts.output ? resolve(opts.output) : resolve(opts.cwd, opts.artifactsDir, "trends.html");
+      await writeFile(outPath, html, "utf-8");
+      log.success(`Trends report written to ${outPath}`);
     } catch (err) {
       log.error(String(err));
       process.exit(2);

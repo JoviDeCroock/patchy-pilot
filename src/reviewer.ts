@@ -14,16 +14,21 @@ export class ReviewExecutionError extends Error {
   }
 }
 
+export interface ReviewResponse {
+  review: ReviewResult;
+  usage?: { input_tokens?: number; output_tokens?: number };
+}
+
 export async function runReview(
   provider: AIProvider,
   artifacts: Artifacts,
   extraRules: string[] = [],
   cwd?: string,
-  options?: { onData?: (chunk: string) => void },
-): Promise<ReviewResult> {
+  options?: { onData?: (chunk: string) => void; plan?: string },
+): Promise<ReviewResponse> {
   log.step(`Starting review with ${provider.name}`);
 
-  const prompt = reviewPrompt(artifacts, extraRules);
+  const prompt = reviewPrompt(artifacts, extraRules, { plan: options?.plan });
   const response = await provider.run(prompt, { cwd, onData: options?.onData });
 
   if (response.exitCode !== 0) {
@@ -46,7 +51,7 @@ export async function runReview(
   // Sanity-check: detect suspiciously clean reviews on non-trivial diffs
   warnIfSuspicious(result, artifacts);
 
-  return result;
+  return { review: result, usage: response.usage };
 }
 
 /**

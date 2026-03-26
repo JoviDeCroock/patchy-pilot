@@ -121,7 +121,7 @@ describe("runFeature", () => {
       .mockResolvedValueOnce({ tests: { passed: true, output: "" }, all_passed: true });
 
     mocks.collectArtifacts.mockResolvedValue({ spec: "Spec", validation: { all_passed: true } });
-    mocks.runReview.mockResolvedValue(makeReview());
+    mocks.runReview.mockResolvedValue({ review: makeReview() });
 
     const result = await runFeature({
       spec: "Ship it",
@@ -159,9 +159,9 @@ describe("runFeature", () => {
 
     mocks.validate.mockResolvedValue({ tests: { passed: true, output: "" }, all_passed: true });
     mocks.collectArtifacts.mockResolvedValue({ spec: "Spec", validation: { all_passed: true } });
-    mocks.runReview.mockResolvedValue(
-      makeReview({ merge_recommendation: "needs_changes", short_summary: "Still needs work." }),
-    );
+    mocks.runReview.mockResolvedValue({
+      review: makeReview({ merge_recommendation: "needs_changes", short_summary: "Still needs work." }),
+    });
 
     const result = await runFeature({
       spec: "Ship it",

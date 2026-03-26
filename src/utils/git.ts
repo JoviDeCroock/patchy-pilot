@@ -12,6 +12,11 @@ export async function gitDiff(baseBranch: string, cwd?: string): Promise<string>
   return result.stdout;
 }
 
+/** Split git output lines, filtering empty strings from trailing newlines or empty output. */
+function splitLines(output: string): string[] {
+  return output.split("\n").filter((line) => line.length > 0);
+}
+
 export async function changedFiles(baseBranch: string, cwd?: string): Promise<string[]> {
   const mergeBase = await exec("git", ["merge-base", baseBranch, "HEAD"], { cwd });
   let result;
@@ -20,18 +25,12 @@ export async function changedFiles(baseBranch: string, cwd?: string): Promise<st
   } else {
     result = await exec("git", ["diff", "--name-only", "HEAD"], { cwd });
   }
-  return result.stdout
-    .trim()
-    .split("\n")
-    .filter((f) => f.length > 0);
+  return splitLines(result.stdout);
 }
 
 export async function untrackedFiles(cwd?: string): Promise<string[]> {
   const result = await exec("git", ["ls-files", "--others", "--exclude-standard"], { cwd });
-  return result.stdout
-    .trim()
-    .split("\n")
-    .filter((f) => f.length > 0);
+  return splitLines(result.stdout);
 }
 
 export async function readFile(path: string, cwd?: string): Promise<string> {

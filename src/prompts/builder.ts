@@ -68,7 +68,19 @@ When you are done, provide a brief summary of:
 - What files you changed or created
 - What tests you wrote
 - Any decisions you made that the specification left open
-- Anything you were unsure about`;
+- Anything you were unsure about
+
+## Acceptance Criteria
+
+Before finishing, verify your own work against these self-check criteria:
+- [ ] Every requirement in the specification has corresponding code
+- [ ] Every new code path has at least one test exercising it with realistic inputs
+- [ ] Tests assert on meaningful outputs, not mocks or constants
+- [ ] No existing tests are broken by the changes
+- [ ] Error paths at system boundaries (user input, file I/O, network) are handled
+- [ ] The implementation follows existing project conventions found in the codebase
+
+List any criteria you could not fully satisfy, with reasoning.`;
 }
 
 export function buildContinuePrompt(context: RebuildContext): string {

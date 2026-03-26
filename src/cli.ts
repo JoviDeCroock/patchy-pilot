@@ -31,6 +31,7 @@ program
   .option("--no-review", "Skip the review step")
   .option("--plan", "Run a planner agent before building")
   .option("--worktree [name]", "Run the feature workflow in a new git worktree")
+  .option("--resume <run-id>", "Resume a previously interrupted run from its last checkpoint")
   .option("--silent", "Suppress real-time streamed output from provider steps")
   .option(
     "--max-rebuilds <count>",
@@ -77,6 +78,7 @@ program
         skipReview: !opts.review,
         plan: opts.plan,
         silent: opts.silent,
+        resume: opts.resume,
       });
 
       process.exit(result.exit_code);

@@ -41,9 +41,17 @@ async function runCheck(
 const PACKAGE_MANAGERS = new Set(["npm", "pnpm", "yarn", "bun", "npx"]);
 
 /**
+ * Maximum total character length for file arguments.
+ * Windows has an 8191 char command-line limit; leave headroom for the
+ * command itself, its flags, and environment overhead.
+ */
+const MAX_FILES_ARG_LENGTH = 6000;
+
+/**
  * Build a scoped args list that targets only the given files.
  * - For package-manager commands (`npm run lint`), appends `-- ...files`.
  * - For direct tool commands, strips a trailing `.` or `./` target and appends files.
+ * - Truncates the file list if it would exceed OS command-line limits.
  */
 export function buildScopedArgs(
   command: string,
@@ -58,11 +66,31 @@ export function buildScopedArgs(
     args.pop();
   }
 
+  // Truncate file list to stay within OS command-line limits
+  const safeFiles = truncateFileList(files);
+
   if (PACKAGE_MANAGERS.has(command)) {
-    return [...args, "--", ...files];
+    return [...args, "--", ...safeFiles];
   }
 
-  return [...args, ...files];
+  return [...args, ...safeFiles];
+}
+
+/** Trim file list to stay under command-line length limits. */
+function truncateFileList(files: string[]): string[] {
+  let totalLength = 0;
+  const result: string[] = [];
+  for (const file of files) {
+    totalLength += file.length + 1; // +1 for the space separator
+    if (totalLength > MAX_FILES_ARG_LENGTH) {
+      log.warn(
+        `Scoped check truncated to ${result.length}/${files.length} files to stay within command-line limits`,
+      );
+      break;
+    }
+    result.push(file);
+  }
+  return result;
 }
 
 export async function validate(config: Config, cwd: string): Promise<ValidationResult> {

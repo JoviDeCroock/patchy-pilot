@@ -42,6 +42,7 @@ export class ClaudeCodeProvider implements AIProvider {
     }
 
     let finalOutput = "";
+    let usage: { input_tokens?: number; output_tokens?: number } | undefined;
 
     const onData = streaming
       ? createLineParser((line) => {
@@ -52,6 +53,12 @@ export class ClaudeCodeProvider implements AIProvider {
               if (text) options!.onData!(text + "\n");
             } else if (msg.type === "result") {
               finalOutput = msg.result ?? "";
+              if (msg.input_tokens || msg.output_tokens) {
+                usage = {
+                  input_tokens: msg.input_tokens,
+                  output_tokens: msg.output_tokens,
+                };
+              }
             }
           } catch {
             // Skip malformed lines
@@ -72,6 +79,7 @@ export class ClaudeCodeProvider implements AIProvider {
       return {
         output: finalOutput || result.stdout,
         exitCode: result.exitCode,
+        usage,
       };
     }
 

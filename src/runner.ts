@@ -1,7 +1,7 @@
 import { join } from "node:path";
 import { readFile, writeFile, access } from "node:fs/promises";
 import type { Config } from "./schemas/config.js";
-import type { ReviewResult, RunResult, ValidationResult } from "./schemas/review.js";
+import type { ReviewResult, RunResult, StepUsage, ValidationResult } from "./schemas/review.js";
 import { createProvider } from "./providers/index.js";
 import { buildContinuePrompt, buildPrompt, type RebuildContext } from "./prompts/builder.js";
 import { validate } from "./validator.js";
@@ -21,12 +21,45 @@ export interface FeatureOptions {
   plan?: boolean;
   /** Suppress real-time streamed output from provider steps. */
   silent?: boolean;
+  /** Resume a previously interrupted run by its run ID. */
+  resume?: string;
+}
+
+/**
+ * Checkpoint saved after each major phase to enable resume on crash.
+ * The checkpoint records which phases completed so the runner can
+ * skip them on resume and pick up from the last incomplete phase.
+ */
+interface Checkpoint {
+  phase: "planned" | "built" | "validated" | "reviewed" | "done";
+  workflowAttempt: number;
+  buildAttempts: number;
+  rebuildsUsed: number;
+  planText?: string;
+  builderSummary?: string;
 }
 
 export async function runFeature(opts: FeatureOptions): Promise<RunResult> {
-  const runId = createRunId();
-  const store = new ArtifactStore(join(opts.cwd, opts.config.artifacts_dir, runId));
-  await store.init();
+  // Resume mode: reload checkpoint from a previous interrupted run
+  let runId: string;
+  let store: ArtifactStore;
+  let checkpoint: Checkpoint | undefined;
+
+  if (opts.resume) {
+    runId = opts.resume;
+    store = new ArtifactStore(join(opts.cwd, opts.config.artifacts_dir, runId));
+    if (await store.exists("checkpoint.json")) {
+      checkpoint = await store.load<Checkpoint>("checkpoint.json");
+      log.info(`Resuming run ${runId} from phase "${checkpoint.phase}"`);
+    } else {
+      log.warn(`No checkpoint found for run ${runId}, starting fresh`);
+      checkpoint = undefined;
+    }
+  } else {
+    runId = createRunId();
+    store = new ArtifactStore(join(opts.cwd, opts.config.artifacts_dir, runId));
+    await store.init();
+  }
 
   // Ensure .patchy-pilot/ is in the target project's .gitignore
   await ensureGitignore(opts.cwd);
@@ -40,9 +73,9 @@ export async function runFeature(opts: FeatureOptions): Promise<RunResult> {
 
   const onData = opts.silent ? undefined : (chunk: string) => log.stream(chunk);
 
-  // Step 0: Plan (optional)
-  let planText: string | undefined;
-  if (opts.plan) {
+  // Step 0: Plan (optional) — skip if checkpoint shows planning already done
+  let planText: string | undefined = checkpoint?.planText;
+  if (opts.plan && !planText) {
     const planResult = await runPlanner({
       spec: opts.spec,
       config: opts.config,
@@ -69,6 +102,7 @@ export async function runFeature(opts: FeatureOptions): Promise<RunResult> {
       return abortResult;
     }
     planText = planResult.plan;
+    await saveCheckpoint(store, { phase: "planned", workflowAttempt: 0, buildAttempts: 0, rebuildsUsed: 0, planText });
   }
 
   const maxRebuilds = opts.skipBuild ? 0 : opts.config.workflow.max_rebuilds;
@@ -86,7 +120,7 @@ export async function runFeature(opts: FeatureOptions): Promise<RunResult> {
         role: "reviewer",
       });
 
-  let builderSummary: string | undefined;
+  let builderSummary: string | undefined = checkpoint?.builderSummary;
   let validation: ValidationResult = { all_passed: false };
   let artifacts: Awaited<ReturnType<typeof collectArtifacts>> | undefined;
   let review: ReviewResult | undefined;
@@ -96,10 +130,14 @@ export async function runFeature(opts: FeatureOptions): Promise<RunResult> {
         reasons: string[];
       }
     | undefined;
-  let buildAttempts = 0;
-  let rebuildsUsed = 0;
+  let buildAttempts = checkpoint?.buildAttempts ?? 0;
+  let rebuildsUsed = checkpoint?.rebuildsUsed ?? 0;
   let rebuildContext: RebuildContext | undefined;
-  let workflowAttempt = 0;
+  let workflowAttempt = checkpoint?.workflowAttempt ?? 0;
+  const tokenUsage: StepUsage[] = [];
+
+  // If resuming from a phase past "built", skip the build loop entry
+  const skipBuildOnResume = checkpoint && (checkpoint.phase === "validated" || checkpoint.phase === "reviewed");
 
   while (true) {
     workflowAttempt++;
@@ -107,35 +145,59 @@ export async function runFeature(opts: FeatureOptions): Promise<RunResult> {
     review = undefined;
     reviewApproval = undefined;
 
-    if (builder) {
+    if (builder && !skipBuildOnResume) {
       buildAttempts++;
       log.step(
         `Starting builder (attempt ${buildAttempts}${maxRebuilds > 0 ? `/${maxRebuilds + 1}` : ""})`,
       );
 
+      // Context reset strategy (from Anthropic harness design):
+      // On rebuilds, prefer a fresh session with structured handoff over
+      // continuing a polluted context. Context resets give the model a
+      // clean slate while carrying forward concrete failure feedback.
+      // Only use session continuation for the first rebuild where context
+      // is still fresh; after that, reset to avoid "context anxiety."
+      const useContextReset = rebuildContext && rebuildsUsed > 1;
+      const useContinue =
+        rebuildContext && builder.supportsContinue && !useContextReset;
+
       const prompt = rebuildContext
-        ? builder.supportsContinue
+        ? useContinue
           ? buildContinuePrompt(rebuildContext)
           : buildPrompt(opts.spec, { plan: planText, rebuildContext })
         : buildPrompt(opts.spec, { plan: planText });
 
+      if (useContextReset && rebuildContext) {
+        log.detail("Using context reset with structured handoff (fresh session)");
+      }
+
       const result = await builder.run(prompt, {
         cwd: opts.cwd,
         onData,
-        continue: rebuildContext ? builder.supportsContinue : undefined,
+        continue: useContinue || undefined,
       });
       builderSummary = result.output;
       await store.save(attemptArtifactName("builder-output.txt", workflowAttempt), builderSummary);
+      if (result.usage) {
+        tokenUsage.push({
+          step: "builder",
+          attempt: workflowAttempt,
+          usage: result.usage,
+        });
+      }
       log.success(`Builder finished (exit ${result.exitCode})`);
       if (result.exitCode !== 0) {
         throw new Error(`Builder exited with code ${result.exitCode}`);
       }
-    } else if (workflowAttempt === 1) {
+
+      await saveCheckpoint(store, { phase: "built", workflowAttempt, buildAttempts, rebuildsUsed, planText, builderSummary });
+    } else if (workflowAttempt === 1 && !skipBuildOnResume) {
       log.info("Skipping build step");
     }
 
     validation = await validate(opts.config, opts.cwd);
     await store.save(attemptArtifactName("validation.json", workflowAttempt), validation);
+    await saveCheckpoint(store, { phase: "validated", workflowAttempt, buildAttempts, rebuildsUsed, planText, builderSummary });
 
     const gateReasons = getValidationFailureReasons(validation);
     if (gateReasons.length > 0) {
@@ -173,8 +235,17 @@ export async function runFeature(opts: FeatureOptions): Promise<RunResult> {
     }
 
     try {
-      review = await runReview(reviewer, artifacts, opts.config.review_rules, opts.cwd, { onData });
+      const reviewResponse = await runReview(reviewer, artifacts, opts.config.review_rules, opts.cwd, { onData, plan: planText });
+      review = reviewResponse.review;
+      if (reviewResponse.usage) {
+        tokenUsage.push({
+          step: "reviewer",
+          attempt: workflowAttempt,
+          usage: reviewResponse.usage,
+        });
+      }
       await store.save(attemptArtifactName("review.json", workflowAttempt), review);
+      await saveCheckpoint(store, { phase: "reviewed", workflowAttempt, buildAttempts, rebuildsUsed, planText, builderSummary });
       printReviewSummary(review);
     } catch (err) {
       if (err instanceof ReviewExecutionError && err.rawOutput) {
@@ -227,6 +298,14 @@ export async function runFeature(opts: FeatureOptions): Promise<RunResult> {
 
   const exitCode = validation.all_passed && (opts.skipReview || reviewApproval?.passed) ? 0 : 1;
 
+  // Aggregate token usage
+  const totalTokens = tokenUsage.length > 0
+    ? {
+        input_tokens: tokenUsage.reduce((sum, s) => sum + (s.usage.input_tokens ?? 0), 0) || undefined,
+        output_tokens: tokenUsage.reduce((sum, s) => sum + (s.usage.output_tokens ?? 0), 0) || undefined,
+      }
+    : undefined;
+
   const result: RunResult = {
     run_id: runId,
     spec: opts.spec,
@@ -241,12 +320,21 @@ export async function runFeature(opts: FeatureOptions): Promise<RunResult> {
     review,
     review_approved: opts.skipReview ? undefined : (reviewApproval?.passed ?? false),
     exit_code: exitCode,
+    token_usage: tokenUsage.length > 0 ? tokenUsage : undefined,
+    total_tokens: totalTokens,
   };
 
   await store.save("result.json", result);
+  await saveCheckpoint(store, { phase: "done", workflowAttempt, buildAttempts, rebuildsUsed, planText, builderSummary });
 
   log.divider();
   log.info(`Artifacts saved to ${store.path}`);
+  if (totalTokens) {
+    const parts: string[] = [];
+    if (totalTokens.input_tokens) parts.push(`${totalTokens.input_tokens.toLocaleString()} input`);
+    if (totalTokens.output_tokens) parts.push(`${totalTokens.output_tokens.toLocaleString()} output`);
+    if (parts.length > 0) log.detail(`Token usage: ${parts.join(", ")}`);
+  }
   if (exitCode === 0) {
     log.success("Run completed successfully");
   } else {
@@ -365,7 +453,8 @@ export async function runReviewOnly(opts: ReviewOnlyOptions): Promise<ReviewOnly
   });
   let review: ReviewResult;
   try {
-    review = await runReview(reviewer, artifacts, opts.config.review_rules, opts.cwd, { onData });
+    const reviewResponse = await runReview(reviewer, artifacts, opts.config.review_rules, opts.cwd, { onData });
+    review = reviewResponse.review;
   } catch (err) {
     if (err instanceof ReviewExecutionError && err.rawOutput) {
       await store.save("review-raw-output.txt", err.rawOutput);
@@ -423,4 +512,8 @@ function printReviewSummary(review: ReviewResult) {
   log.detail(`Risky changes: ${review.risky_changes.length}`);
   log.detail(`Hidden assumptions: ${review.hidden_assumptions.length}`);
   log.info(review.short_summary);
+}
+
+async function saveCheckpoint(store: ArtifactStore, checkpoint: Checkpoint): Promise<void> {
+  await store.save("checkpoint.json", checkpoint);
 }

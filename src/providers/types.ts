@@ -1,6 +1,11 @@
 export interface ProviderResponse {
   output: string;
   exitCode: number;
+  /** Token usage stats when available from the provider. */
+  usage?: {
+    input_tokens?: number;
+    output_tokens?: number;
+  };
 }
 
 export type ProviderRole = "builder" | "reviewer" | "learner" | "planner";

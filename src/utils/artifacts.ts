@@ -1,4 +1,4 @@
-import { mkdir, writeFile, readFile } from "node:fs/promises";
+import { mkdir, writeFile, readFile, access } from "node:fs/promises";
 import { join } from "node:path";
 
 export class ArtifactStore {
@@ -19,6 +19,15 @@ export class ArtifactStore {
     const path = join(this.dir, name);
     const content = await readFile(path, "utf-8");
     return JSON.parse(content) as T;
+  }
+
+  async exists(name: string): Promise<boolean> {
+    try {
+      await access(join(this.dir, name));
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   get path(): string {

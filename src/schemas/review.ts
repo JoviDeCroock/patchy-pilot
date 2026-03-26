@@ -82,6 +82,17 @@ export const ArtifactsSchema = z.object({
 });
 export type Artifacts = z.infer<typeof ArtifactsSchema>;
 
+const TokenUsageSchema = z.object({
+  input_tokens: z.number().int().nonnegative().optional(),
+  output_tokens: z.number().int().nonnegative().optional(),
+});
+
+const StepUsageSchema = z.object({
+  step: z.string(),
+  attempt: z.number().int().optional(),
+  usage: TokenUsageSchema,
+});
+
 export const RunResultSchema = z.object({
   run_id: z.string(),
   spec: z.string(),
@@ -96,5 +107,11 @@ export const RunResultSchema = z.object({
   review: ReviewResultSchema.optional(),
   review_approved: z.boolean().optional(),
   exit_code: z.number(),
+  /** Per-step token usage for cost tracking. */
+  token_usage: z.array(StepUsageSchema).optional(),
+  /** Total tokens across all steps. */
+  total_tokens: TokenUsageSchema.optional(),
 });
 export type RunResult = z.infer<typeof RunResultSchema>;
+export type TokenUsage = z.infer<typeof TokenUsageSchema>;
+export type StepUsage = z.infer<typeof StepUsageSchema>;
